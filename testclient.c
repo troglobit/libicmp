@@ -38,34 +38,32 @@ unsigned long int resolve(char *p)
     exit(1);
   }
 
-  if(h != NULL) memcpy(&rv, h->h_addr, h->h_length);
-  else rv = inet_addr(p);
+  if (h != NULL)
+     memcpy(&rv, h->h_addr, h->h_length);
+  else
+     rv = inet_addr(p);
 
   return rv;
 }
 
-int main ( void )
+int main (void)
 {
-
   ICMP_SOCKET *isock;
   ICMP_DGRAM *idgram;
   char message[] = "Hello World.";
   int i;
 
-  if (!(isock = open_icmp_socket(resolve("127.0.0.1"), 54321)))
-	    {  printf("Failed to Open Socket. \n"); exit(0); }
-
-
-
+  if (!(isock = open_icmp_socket(resolve("127.0.0.1"), 54321))) {
+     printf("Failed to Open Socket. \n");
+     exit(0);
+  }
  
-  idgram =  build_icmp_dgram(message,sizeof(message));
-
-  i = send_icmp_dgram(isock,idgram); 
-
-  printf("Sent %d Bytes.\n",i);
+  idgram = build_icmp_dgram(message, sizeof(message));
+  i = send_icmp_dgram(isock, idgram); 
+  printf("Sent %d Bytes.\n", i);
 
   close_icmp_socket(isock);   
-  return 0 ;
 
+  return 0;
 }
 
