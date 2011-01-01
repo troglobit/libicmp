@@ -1,19 +1,26 @@
-
-/* Libicmp 0.1a
- * Tim.Lawless@usm.edu
- * 
+/* Libicmp - A simple interface for sending and receiving ICMP datagrams.
+ *
+ * Copyright (c) 2000  Tim Lawless <tim.lawless@usm.edu>
+ * Copyright (c) 2011  Joachim Nilsson <troglobit@vmlinux.org>
+ *
  * Libicmp is intended to provide a simple interface for sending and reciving
  * icmp datagrams. Beyond the obvious diffrence of using ICMP, applications
  * Using this interface would behave much in the same way an UDP application
  * behaves. 
  *
- * The documentation for this version is non-existant. I know how
- * Works. I should write some, but I figure if your playing with
- * this you probably are skilled enough to understand what I'm doing
- * from the two included "test" applications. 
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * Feel free to take, use, improve. Use any lisence you desire.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
 #include "libicmp.h"
 #include <netdb.h>
 #include <stdio.h>
@@ -24,46 +31,59 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#define  HOSTNAME  "127.0.0.1"
+#define  PSEUDOPORT 54321
 
-#define  HOSTNAME 127.0.0.1
-#define  PSUDOPORT 54321
-
-unsigned long int resolve(char *p)
+unsigned long
+resolve(char *p)
 {
-  struct   hostent *h;
-  unsigned long int rv;
+    struct hostent *h;
+    unsigned long int rv;
 
-  if ((h = gethostbyname(p)) == NULL) {
-    perror("gethostbyname");
-    exit(1);
-  }
+    if ((h = gethostbyname(p)) == NULL) {
+	perror("gethostbyname");
+	exit(1);
+    }
 
-  if(h != NULL) memcpy(&rv, h->h_addr, h->h_length);
-  else rv = inet_addr(p);
+    if (h != NULL)
+	memcpy(&rv, h->h_addr, h->h_length);
+    else
+	rv = inet_addr(p);
 
-  return rv;
+    return rv;
 }
 
-int main ( void )
+int
+main(void)
 {
+    icmp_socket_t  *isock;
+    icmp_dgram_t   *idgram;
 
-  ICMP_SOCKET *isock;
-  ICMP_DGRAM *idgram;
+    isock = icmp_socket_open(resolve(HOSTNAME), PSEUDOPORT);
+    if (!isock) {
+	printf("Failed to open socket.\n");
+	exit(0);
+    }
 
-  if (!(isock = open_icmp_socket(resolve("127.0.0.1"), 54321)))
-	    {  printf("Failed to Open Socket. \n"); exit(0); }
+    idgram = icmp_dgram_recv(isock, ICMP_ECHO);
+    if (!idgram) {
+	printf("Something is Wrong with icmp_dgram_recv.\n");
+	perror("Humm.");
+	exit(0);
+    }
+    printf("Dgram Size: %d, Dgram Message: %s\n", idgram->size,
+	   idgram->buf);
 
+    icmp_socket_close(isock);
 
- 
-  if (!(idgram = get_icmp_dgram(isock))) {
-		printf("Something is Wrong with get_icmp_dgram.\n");
-        perror("Humm.");
-		exit(0);
-  }
-  printf("Dgram Size: %d, Dgram Message: %s\n",idgram->size,idgram->buf);
-
-  close_icmp_socket(isock);   
-  return 0 ;
-
+    return 0;
 }
 
+/**
+ * Local Variables:
+ *  version-control: t
+ *  indent-tabs-mode: t
+ *  c-file-style: "ellemtel"
+ *  c-basic-offset: 4
+ * End:
+ */
