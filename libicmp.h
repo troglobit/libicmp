@@ -14,6 +14,10 @@
  *
  * Feel free to take, use, improve. Use any lisence you desire.
  */
+
+#ifndef LIBICMP_H_
+#define LIBICMP_H_
+
 #define MAX_DGRAM_SIZE 65502
 #define BUFSIZE 65536
 
@@ -43,4 +47,4 @@ ICMP_DGRAM * get_icmp_dgram( ICMP_SOCKET * icmp_socket);
 int send_icmp_dgram(ICMP_SOCKET * icmp_socket, ICMP_DGRAM * icmp_dgram ); 		
 int close_icmp_socket ( ICMP_SOCKET * icmp_socket ); 							
 
-
+#endif  /* LIBICMP_H_ */
