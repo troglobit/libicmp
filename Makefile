@@ -1,23 +1,24 @@
-CC	=gcc
-CCFLAGS= -Wall -O4
+# Makefile for libicmp and iping
+CC	= gcc
+CFLAGS  = -Wall -O4
+LDLIBS  = libicmp.o
 
-all: testclient testserver
+all: $(LDLIBS) iping
 
-testclient: testclient.o libicmp.o
-	$(CC) $(CCFLAGS) -o $@ testclient.o libicmp.o
+test: $(LDLIBS) testclient testserver
 
-testserver: testserver.o libicmp.o
-	$(CC) $(CCFLAGS) -o $@ testserver.o libicmp.o
+iping: iping.o
 
-libicmp.o: libicmp.c libicmp.h
-	$(CC) $(CCFLAGS) -c -o $@ libicmp.c
+testclient: testclient.o
+
+testserver: testserver.o
+
+$(LDLIBS): libicmp.c libicmp.h
 
 testserver.o: testserver.c libicmp.h
-	$(CC) $(CCFLAGS) -c -o $@ testserver.c
 
 testclient.o: testclient.c libicmp.h
-	$(CC) $(CCFLAGS) -c -o $@ testclient.c
 
-clean::
-	rm -f *.o testserver testclient
+clean:
+	-@rm -f *.o testserver testclient
 
