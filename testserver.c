@@ -35,7 +35,7 @@ unsigned long int resolve(char *p)
 
   if ((h = gethostbyname(p)) == NULL) {
     perror("gethostbyname");
-    exit(-1);
+    exit(1);
   }
 
   if(h != NULL) memcpy(&rv, h->h_addr, h->h_length);
