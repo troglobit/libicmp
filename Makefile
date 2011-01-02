@@ -1,24 +1,23 @@
 # Makefile for libicmp and iping
+
 CC	= gcc
-CFLAGS  = -Wall -O4
-LDLIBS  = libicmp.o
+EXEC    = iping
+CFLAGS  = -Wall -W -Werror -O4
+LIBNAME = libicmp.a
+LDLIBS  = $(LIBNAME)
 
-all: $(LDLIBS) iping
+all: $(EXEC)
 
-test: $(LDLIBS) testclient testserver
+$(EXEC): libicmp.h $(LIBNAME)
 
-iping: iping.o
+$(LIBNAME): libicmp.o
+	ar crus $@ $^
 
-testclient: testclient.o
-
-testserver: testserver.o
-
-$(LDLIBS): libicmp.c libicmp.h
-
-testserver.o: testserver.c libicmp.h
-
-testclient.o: testclient.c libicmp.h
+#libicmp.o: libicmp.c libicmp.h
 
 clean:
-	-@rm -f *.o testserver testclient
+	-@rm -f *.o $(EXEC) $(LIBNAME)
+
+distclean: clean
+	-@rm -f *~ *.bak *.map .*.d DEADJOE semantic.cache *.gdb *.elf core core.*
 
