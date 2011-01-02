@@ -27,6 +27,8 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <poll.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/ip.h>
@@ -37,11 +39,12 @@
 static u_short
 cksum(u_short * buf, int nwords)
 {
-    unsigned long   sum;
+    u_long sum;
 
     for (sum = 0; nwords > 0; nwords--)
 	sum += *buf++;
-    sum = (sum >> 16) + (sum & 0xffff);
+
+    sum  = (sum >> 16) + (sum & 0xffff);
     sum += (sum >> 16);
 
     return ~sum;
@@ -51,125 +54,61 @@ cksum(u_short * buf, int nwords)
 /*
  * If your opening up a socket for listening, set both paramaters to 0
  */
-icmp_socket_t  *
-icmp_socket_open(unsigned long int host, unsigned short int pseudoport)
+libicmp_t  *
+icmp_open(struct in_addr addr, unsigned short id, unsigned ttl)
 {
-    icmp_socket_t  *isock;
+    socklen_t       ttl_len;
+    libicmp_t  *isock;
 
-    isock = malloc(sizeof(icmp_socket_t));
+    isock = malloc(sizeof(libicmp_t));
     if (!isock)
 	return NULL;
 
-    bzero(isock, sizeof(icmp_socket_t));
+    bzero(isock, sizeof(libicmp_t));
 
-    if (host || pseudoport) {
-	isock->host = host;
-	isock->pseudoport = pseudoport;
+    if (addr.s_addr || id) {
+	isock->addr = addr;
+	isock->id = id;
     }
 
-    if ((isock->socketfd = socket(AF_INET, SOCK_RAW, 1)) < 0)
+    if ((isock->sd = socket(AF_INET, SOCK_RAW, 1)) < 0)
 	return NULL;
+
+    if (ttl) {
+	ttl_len = sizeof(isock->ttl);
+	setsockopt(isock->sd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
+	setsockopt(isock->sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+	getsockopt(isock->sd, IPPROTO_IP, IP_TTL, &isock->ttl, &ttl_len);
+    }
 
     return isock;
 }
 
-icmp_dgram_t   *
-icmp_dgram_build(void *msg, int size)
-{
-    icmp_dgram_t   *dgram;
-
-    if (size > MAX_DGRAM_SIZE)
-	return NULL;
-
-    if (!(dgram = malloc(sizeof(icmp_dgram_t))))
-	return NULL;
-
-    bzero(dgram, sizeof(icmp_dgram_t));
-
-    dgram->size = size;
-
-    if (!(memcpy(dgram->buf, msg, size))) {
-	free(dgram);
-	return NULL;
-    }
-    return dgram;
-}
-
-
-icmp_dgram_t   *
-icmp_dgram_recv(icmp_socket_t * icmp_socket, u_int8_t type)
-{
-    int             i,
-                    checksum;
-    char            buffer[BUFSIZE];
-    struct iphdr   *ip = (struct iphdr *) buffer;
-    struct icmphdr *icmp =
-	(struct icmphdr *) (buffer + sizeof(struct iphdr));
-    icmp_dgram_t   *icmp_dgram;
-    icmp_dgram_t   *dgram_overlay;
-
-    dgram_overlay =
-	(icmp_dgram_t *) (buffer + sizeof(struct iphdr) +
-			  sizeof(struct icmphdr));
-    while (1) {
-	if (!icmp_socket
-	    || ((i = read(icmp_socket->socketfd, buffer, BUFSIZE)) < 0))
-	    return NULL;
-
-	if (ip->protocol != 1 || icmp->type != type ||
-	    icmp->un.echo.id != htons(icmp_socket->pseudoport))
-	    continue;
-
-	checksum = icmp->checksum;
-	icmp->checksum = 0;
-	if (checksum != cksum((u_short *) icmp,
-			      sizeof(struct icmphdr) +
-			      dgram_overlay->size +
-			      sizeof(unsigned short int)))
-	    return NULL;
-
-	icmp_dgram = malloc(sizeof(icmp_dgram_t));
-	if (!icmp_dgram)
-	    return NULL;
-	bzero(icmp_dgram, sizeof(icmp_dgram_t));
-
-	/*
-	 * First, Extract our Size
-	 */
-	memcpy(icmp_dgram, dgram_overlay, dgram_overlay->size +
-	       sizeof(unsigned short int));
-	printf("Icmp Dgram, size: %d, Message: %s\n", icmp_dgram->size,
-	       icmp_dgram->buf);
-
-	return icmp_dgram;
-    }
-}
-
 
 int
-icmp_dgram_send(icmp_socket_t * icmp_socket, u_int8_t type,
-		icmp_dgram_t * icmp_dgram)
+icmp_send(libicmp_t *isock, u_int8_t type, char *payload, size_t len)
 {
-    char            buffer[BUFSIZE - sizeof(struct iphdr)];
-    struct icmphdr *icmp = (struct icmphdr *) buffer;
-    struct sockaddr_in sockaddr;
     int             i;
+    char            buffer[BUFSIZE];
+    struct icmphdr *icmp = (struct icmphdr *)buffer;
+    struct sockaddr_in sockaddr;
+    struct timeval now;
 
-    bzero(buffer, BUFSIZE - sizeof(struct iphdr));
+    bzero(buffer, BUFSIZE);
+    gettimeofday(&now, NULL);
 
-    memcpy((buffer + sizeof(struct icmphdr)), icmp_dgram,
-	   icmp_dgram->size + sizeof(unsigned short int));
+    /* ICMP Payload is our time now + any user defined payload */
+    memcpy((buffer + sizeof(struct icmphdr)), &now, sizeof(struct timeval));
+    memcpy((buffer + sizeof(struct icmphdr) + sizeof(struct timeval)), payload, len);
 
-    icmp->type = ICMP_ECHO;
-    icmp->un.echo.id = htons(icmp_socket->pseudoport);
-    icmp->checksum = cksum((u_short *) icmp, sizeof(struct icmphdr) +
-			   icmp_dgram->size + sizeof(unsigned short int));
+    icmp->type = type;
+    icmp->un.echo.id = htons(isock->id);
+    icmp->un.echo.sequence = htons(isock->seqno);
+    icmp->checksum = cksum((u_short *)icmp, sizeof(struct icmphdr) + sizeof(struct timeval) + len);
     sockaddr.sin_family = AF_INET;
-    sockaddr.sin_addr.s_addr = icmp_socket->host;
+    sockaddr.sin_addr = isock->addr;
 
-    i = sendto(icmp_socket->socketfd, buffer,
-	       sizeof(struct icmphdr) + icmp_dgram->size +
-	       sizeof(unsigned short int), 0,
+    i = sendto(isock->sd, buffer, sizeof(struct icmphdr) + sizeof(struct timeval) + len, 0,
 	       (struct sockaddr *) &sockaddr, sizeof(sockaddr));
     if (i < 0)
 	return 0;
@@ -178,16 +117,96 @@ icmp_dgram_send(icmp_socket_t * icmp_socket, u_int8_t type,
 }
 
 
-int
-icmp_socket_close(icmp_socket_t * icmp_socket)
+size_t
+icmp_recv(libicmp_t *isock, char *buf, u_int8_t type, int timeout)
 {
-    if (!icmp_socket)
+    int             i, checksum;
+    char           *ptr;
+    char            buffer[BUFSIZE];
+    struct iphdr   *ip   = (struct iphdr *)buffer;
+    struct icmphdr *icmp = (struct icmphdr *)(buffer + sizeof(struct iphdr));
+
+    if (!isock) {
+	errno = EINVAL;
+	return 0;
+    }
+
+    ptr = buffer + sizeof(struct iphdr) + sizeof(struct icmphdr);
+    while (1) {
+	int ret = 0;
+	struct pollfd pfd = { isock->sd, POLLIN | POLLPRI, 0 };
+
+	ret = poll (&pfd, 1, timeout);
+	if (ret <= 0) {
+	    if (ret == 0)
+		errno = ETIMEDOUT;
+
+	    return 0;
+	}
+
+	if (pfd.revents & (POLLIN | POLLPRI)) {
+	    size_t datalen;
+
+	    i = read(isock->sd, buffer, BUFSIZE);
+	    if (i < 0)
+		return 0;
+
+	    if (ip->protocol != 1 || icmp->type != type ||
+		icmp->un.echo.id != htons(isock->id) ||
+		icmp->un.echo.sequence != htons(isock->seqno))
+		continue;
+
+	    checksum       = icmp->checksum;
+	    icmp->checksum = 0;
+	    datalen        = i - sizeof(struct iphdr);
+	    if (checksum != cksum((u_short *)icmp, datalen)) {
+		errno = EIO;
+		return 0;
+	    }
+
+	    memcpy(&isock->tv, ptr, sizeof(struct timeval));
+	    memcpy(buf, ptr + sizeof(struct timeval), datalen - sizeof(struct timeval));
+
+	    return datalen;
+	}
+    }
+}
+
+
+int
+icmp_ping(libicmp_t *isock, char *payload, size_t len)
+{
+    struct timeval now;
+    char buf[MAX_DGRAM_LEN];
+
+    isock->seqno++;
+    if (!icmp_send(isock, ICMP_ECHO, payload, len))
+	return 0;
+
+    len = icmp_recv(isock, buf, ICMP_ECHOREPLY, 5000);
+    if (!len) {
+	return 0;
+    }
+
+    gettimeofday(&now, NULL);
+    timersub(&now, &isock->tv, &now);
+    /* precision: tenths of milliseconds */
+    isock->triptime = now.tv_sec * 10000 + (now.tv_usec / 100);
+
+    return len;
+}
+
+
+int
+icmp_close(libicmp_t * isock)
+{
+    if (!isock)
 	return errno;
 
-    if (icmp_socket->socketfd)
-	close(icmp_socket->socketfd);
+    if (isock->sd)
+	close(isock->sd);
 
-    free(icmp_socket);
+    free(isock);
 
     return 0;
 }

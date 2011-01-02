@@ -21,8 +21,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "libicmp.h"
+
+#define ERROR(fmt, args...) fprintf(stderr, "%s: " fmt, __progname, ##args)
+extern char *__progname;
+
 
 unsigned long resolve(char *p)
 {
@@ -30,7 +35,7 @@ unsigned long resolve(char *p)
     unsigned long int rv;
 
     if ((h = gethostbyname(p)) == NULL) {
-	fprintf(stderr, "Failed looking up IP address for %s: %s\n", p, hstrerror (h_errno));
+	ERROR("%s for %s\n", hstrerror (h_errno), p);
 	exit(1);
     }
 
@@ -45,33 +50,38 @@ unsigned long resolve(char *p)
 
 int main(int argc, char *argv[])
 {
-    int i;
+    size_t len;
+    char *host, *addr_str;
+    struct in_addr addr;
     char message[] = "iping: r u there?";
-    icmp_socket_t *isock;
-    icmp_dgram_t *idgram;
+    libicmp_t *isock;
 
     if (argc < 2) {
 	fprintf(stderr, "usage: ping <hostname>\n");
 	return 1;
     }
 
-    isock = icmp_socket_open(resolve(argv[1]), 54321);
+    host = argv[1];
+    addr.s_addr = resolve(host);
+    addr_str = inet_ntoa(addr);
+    isock = icmp_open(addr, 0x1337, 0);
     if (!isock) {
-	fprintf(stderr, "Failed to open ICMP socket: %s\n", strerror (errno));
+	ERROR("Failed to open ICMP socket: %s\n", strerror (errno));
 	return 0;
     }
 
-    idgram = icmp_dgram_build(message, sizeof(message));
-    i = icmp_dgram_send(isock, ICMP_ECHO, idgram);
-    idgram = icmp_dgram_recv(isock, ICMP_ECHOREPLY);
-    if (!idgram) {
-	printf("Something is Wrong with icmp_dgram_recv.\n");
-	perror("Humm.");
-	exit(0);
+    printf("PING %s (%s)\n", host, addr_str);
+    while (1) {
+	len = icmp_ping(isock, message, sizeof(message));
+	if (!len)
+	    ERROR("%s for %s\n", strerror (errno), host);
+	else
+	    printf("%zd bytes from %s (%s): icmp_req=%d ttl=%d time=%ld.%ld ms\n",
+		   len, host, addr_str, isock->seqno, isock->ttl, isock->triptime / 10, isock->triptime % 10);
+	sleep(1);
     }
-    printf("Dgram Size: %d, Dgram Message: %s\n",idgram->size,idgram->buf);
 
-    icmp_socket_close(isock);   
+    icmp_close(isock);
 
     return 0;
 }

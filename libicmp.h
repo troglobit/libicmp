@@ -6,7 +6,7 @@
  * Libicmp is intended to provide a simple interface for sending and reciving
  * icmp datagrams. Beyond the obvious diffrence of using ICMP, applications
  * Using this interface would behave much in the same way an UDP application
- * behaves. 
+ * behaves.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -26,36 +26,30 @@
 
 #include <netinet/ip_icmp.h>
 
-#define MAX_DGRAM_SIZE 65502
+#define MAX_DGRAM_LEN  65502
 #define BUFSIZE        65536
 
 extern int      silent;
 
-struct icmp_socket {
-    int             socketfd;	/* File Descriptor for the ICMP Socket */
-    int             pseudoport;	/* The ICMP_ECHO ID, refered to as the
-				 * Sequence # */
-    int             host;
+struct libicmp {
+    int             sd;         /* File Descriptor for the ICMP Socket */
+    u_int8_t        ttl;        /* IP unicast/multicast TTL */
+    u_int16_t       id;         /* The ICMP_ECHO ID */
+    u_int16_t       seqno;      /* Sequence # */
+    struct in_addr  addr;
+    struct timeval  tv;         /* Packet send time */
+    long triptime;              /* Round trip time */
 };
 
-typedef struct icmp_socket icmp_socket_t;
+typedef struct libicmp libicmp_t;
 
-struct icmp_dgram {
-    unsigned short  size;	/* Size at head of dgram */
-    char            buf[MAX_DGRAM_SIZE];
-};
+libicmp_t  *icmp_open(struct in_addr addr, unsigned short id, unsigned ttl);
+size_t      icmp_recv(libicmp_t *isock, char *buf, u_int8_t type, int timeout);
+int         icmp_send(libicmp_t *isock, u_int8_t type, char *payload, size_t len);
+int         icmp_ping(libicmp_t *isock, char *payload, size_t len);
+int         icmp_close(libicmp_t *isock);
 
-typedef struct icmp_dgram icmp_dgram_t;
-
-icmp_socket_t  *icmp_socket_open(unsigned long host,
-				 unsigned short pseudoport);
-icmp_dgram_t   *icmp_dgram_build(void *msg, int size);
-icmp_dgram_t   *icmp_dgram_recv(icmp_socket_t * icmp_socket, u_int8_t type);
-int             icmp_dgram_send(icmp_socket_t * icmp_socket, u_int8_t type,
-				icmp_dgram_t * icmp_dgram);
-int             icmp_socket_close(icmp_socket_t * icmp_socket);
-
-#endif				/* LIBICMP_H_ */
+#endif /* LIBICMP_H_ */
 
 /**
  * Local Variables:
