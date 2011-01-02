@@ -1,18 +1,31 @@
 # Makefile for libicmp and iping
 
+CC        = @gcc
 CFLAGS    = -Wall -W -Werror -O4
+AR        = @ar
 ARFLAGS   = crus
-LDLIBS    = $(LIBNAME)
-RM        = rm -f
+LDFLAGS   = -L.
+LDLIBS    = -licmp
+RM        = @rm -f
 
 EXEC      = iping
+OBJS      = iping.o libicmp.o
+DEPS      = $(addprefix .,$(OBJS:.o=.d))
+
 LIBNAME   = libicmp.a
+DEPLIB    = $(LIBNAME)(libicmp.o)
+
+# Smart autodependecy generation via GCC -M.
+.%.d: %.c
+	@$(SHELL) -ec "$(CC) -MM $(CFLAGS) $(CPPFLAGS) $< 2>/dev/null \
+                | sed 's,.*: ,$*.o $@ : ,g' > $@; \
+                [ -s $@ ] || rm -f $@"
 
 all: $(EXEC)
 
-$(EXEC): libicmp.h $(LIBNAME)(libicmp.o)
+$(EXEC): $(LIBNAME)
 
-$(LIBNAME)(libicmp.o): libicmp.h 
+$(LIBNAME): $(DEPLIB)
 
 clean:
 	-$(RM) *.o $(EXEC) $(LIBNAME)
@@ -20,3 +33,4 @@ clean:
 distclean: clean
 	-$(RM) *~ *.bak *.map .*.d DEADJOE semantic.cache *.gdb *.elf core core.*
 
+-include $(DEPS)
