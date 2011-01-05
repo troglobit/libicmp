@@ -1,0 +1,10 @@
+README
+
+This library, libicmp, is a very simple interface for sending and receiving ICMP
+datagrams.  It currently only supports IPv4, so any patches for adding support
+fro IPv6 (see TODO) are most welcome!  Also welcome are patches for improved 
+error handling and refactoring of error codes.
+
+Libicmp was initally developed by Tim Lawless and later refactored and extended upon
+by Joachim Nilsson.
+
