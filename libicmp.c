@@ -21,23 +21,25 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdio.h>
-#include <string.h>
 #include <errno.h>
 #include <netdb.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <poll.h>
+#include <resolv.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/ip.h>
-#include <netinet/in.h>
-#include <netinet/ip_icmp.h>
+#include <unistd.h>
+
 #include "libicmp.h"
 
 static u_short
-cksum(u_short * buf, int nwords)
+in_cksum(u_short * buf, int nwords)
 {
     u_long sum;
 
@@ -55,24 +57,32 @@ cksum(u_short * buf, int nwords)
  * If your opening up a socket for listening, set both paramaters to 0
  */
 libicmp_t  *
-icmp_open(struct in_addr addr, unsigned short id, unsigned ttl)
+icmp_open(char *host, unsigned short id, unsigned ttl)
 {
-    socklen_t       ttl_len;
-    libicmp_t  *isock;
+    libicmp_t       *isock;
+    socklen_t        ttl_len;
+    struct addrinfo *addr;
+
+    if (icmp_resolve(host, &addr))
+	return NULL;
 
     isock = malloc(sizeof(libicmp_t));
-    if (!isock)
+    if (!isock) {
+	freeaddrinfo(addr);
 	return NULL;
+    }
 
     bzero(isock, sizeof(libicmp_t));
 
-    if (addr.s_addr || id) {
-	isock->addr = addr;
-	isock->id = id;
-    }
+    isock->sd   = socket(AF_INET, SOCK_RAW, 1);
+    isock->id   = id;
+    isock->host = strdup(host);
 
-    if ((isock->sd = socket(AF_INET, SOCK_RAW, 1)) < 0)
+    if (isock->sd < 0) {
+	free(isock->host);
+	free(isock);
 	return NULL;
+    }
 
     if (ttl) {
 	ttl_len = sizeof(isock->ttl);
@@ -84,15 +94,55 @@ icmp_open(struct in_addr addr, unsigned short id, unsigned ttl)
     return isock;
 }
 
+int
+icmp_resolve(char *host, struct addrinfo **addr)
+{
+    int code;
+    struct addrinfo hints;
+
+    res_init(); /* Reinitialize resolver every time to prevent cache misses due to
+		 * NAME-->IP DNS changes, or outages in round robin DNS setups. */
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;          /* Any protocol */
+
+    code = getaddrinfo(host, NULL, &hints, addr);
+    if (code) {
+	errno = EINVAL;
+	return code;
+    }
+
+    return 0;
+}
+
+char *
+icmp_ntoa(struct addrinfo *addr, char *buf, size_t len)
+{
+    /* NI_NUMERICHOST avoids DNS lookup. */
+    if (getnameinfo(addr->ai_addr, addr->ai_addrlen, buf, len, NULL, 0, NI_NUMERICHOST))
+	return NULL;
+
+    return buf;
+}
 
 int
 icmp_send(libicmp_t *isock, u_int8_t type, char *payload, size_t len)
 {
-    int             i;
-    char            buffer[BUFSIZE];
-    struct icmphdr *icmp = (struct icmphdr *)buffer;
-    struct sockaddr_in sockaddr;
-    struct timeval now;
+    int              i;
+    char             buffer[BUFSIZE];
+    struct icmphdr  *icmp = (struct icmphdr *)buffer;
+    struct timeval   now;
+    struct addrinfo *addr;
+
+    if (!isock) {
+	errno = EINVAL;
+	return 0;
+    }
+
+    isock->gai_code = icmp_resolve (isock->host, &addr);
+    if (isock->gai_code)
+	return 0;
 
     bzero(buffer, BUFSIZE);
     gettimeofday(&now, NULL);
@@ -104,14 +154,15 @@ icmp_send(libicmp_t *isock, u_int8_t type, char *payload, size_t len)
     icmp->type = type;
     icmp->un.echo.id = htons(isock->id);
     icmp->un.echo.sequence = htons(isock->seqno);
-    icmp->checksum = cksum((u_short *)icmp, sizeof(struct icmphdr) + sizeof(struct timeval) + len);
-    sockaddr.sin_family = AF_INET;
-    sockaddr.sin_addr = isock->addr;
+    icmp->checksum = in_cksum((u_short *)icmp, sizeof(struct icmphdr) + sizeof(struct timeval) + len);
 
     i = sendto(isock->sd, buffer, sizeof(struct icmphdr) + sizeof(struct timeval) + len, 0,
-	       (struct sockaddr *) &sockaddr, sizeof(sockaddr));
-    if (i < 0)
+	       addr->ai_addr, sizeof(struct sockaddr));
+    freeaddrinfo(addr);
+    if (i < 0) {
+	perror("sendto");
 	return 0;
+    }
 
     return i;
 }
@@ -159,7 +210,7 @@ icmp_recv(libicmp_t *isock, char *buf, u_int8_t type, int timeout)
 	    checksum       = icmp->checksum;
 	    icmp->checksum = 0;
 	    datalen        = i - sizeof(struct iphdr);
-	    if (checksum != cksum((u_short *)icmp, datalen)) {
+	    if (checksum != in_cksum((u_short *)icmp, datalen)) {
 		errno = EIO;
 		return 0;
 	    }
@@ -206,6 +257,7 @@ icmp_close(libicmp_t * isock)
     if (isock->sd)
 	close(isock->sd);
 
+    free(isock->host);
     free(isock);
 
     return 0;

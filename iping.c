@@ -28,31 +28,25 @@
 #define ERROR(fmt, args...) fprintf(stderr, "%s: " fmt, __progname, ##args)
 extern char *__progname;
 
-
-unsigned long resolve(char *p)
+char *resolve(char *host, char *buf, size_t len)
 {
-    struct hostent *h;
-    unsigned long int rv;
+    char *result;
+    struct addrinfo *addr;
 
-    if ((h = gethostbyname(p)) == NULL) {
-	ERROR("%s for %s\n", hstrerror (h_errno), p);
-	exit(1);
-    }
+    if (icmp_resolve(host, &addr))
+	return NULL;
 
-    if (h != NULL)
-	memcpy(&rv, h->h_addr, h->h_length);
-    else
-	rv = inet_addr(p);
+    result = icmp_ntoa(addr, buf, len);
+    freeaddrinfo(addr);
 
-    return rv;
+    return result;
 }
-
 
 int main(int argc, char *argv[])
 {
     size_t len;
-    char *host, *addr_str;
-    struct in_addr addr;
+    char *host, *addr;
+    char buf[80];
     char message[] = "iping: r u there?";
     libicmp_t *isock;
 
@@ -62,22 +56,25 @@ int main(int argc, char *argv[])
     }
 
     host = argv[1];
-    addr.s_addr = resolve(host);
-    addr_str = inet_ntoa(addr);
-    isock = icmp_open(addr, 0x1337, 0);
+    addr = resolve(host, buf, sizeof(buf));
+    if (!addr) {
+	ERROR("%s for %s\n", strerror (errno), host);
+    }
+
+    isock = icmp_open(host, 0x1337, 0);
     if (!isock) {
 	ERROR("Failed to open ICMP socket: %s\n", strerror (errno));
 	return 0;
     }
 
-    printf("PING %s (%s)\n", host, addr_str);
+    printf("PING %s (%s)\n", host, addr);
     while (1) {
 	len = icmp_ping(isock, message, sizeof(message));
 	if (!len)
 	    ERROR("%s for %s\n", strerror (errno), host);
 	else
 	    printf("%zd bytes from %s (%s): icmp_req=%d ttl=%d time=%ld.%ld ms\n",
-		   len, host, addr_str, isock->seqno, isock->ttl, isock->triptime / 10, isock->triptime % 10);
+		   len, host, addr, isock->seqno, isock->ttl, isock->triptime / 10, isock->triptime % 10);
 	sleep(1);
     }
 
