@@ -116,8 +116,14 @@ int main(int argc, char *argv[])
 
 	printf("PING %s (%s)\n", host, addr);
 	while (1) {
-		len = icmp_ping(obj, message, sizeof(message));
+		char buf[BUFSIZ];
+
+		if (icmp_send(obj, ICMP_ECHO, message, sizeof(message)))
+			goto error;
+
+		len = icmp_recv(obj, ICMP_ECHOREPLY, 5000, buf, sizeof(buf));
 		if (len <= 0) {
+		error:
 			warnx("%s: %s", host, icmp_errstr(obj) ?: "<nil>");
 			result = 1;
 			goto exit;
@@ -126,7 +132,7 @@ int main(int argc, char *argv[])
 		printf("%d bytes from %s (%s): icmp_req=%d ttl=%d time=%d.%d ms\n",
 		       len, host, addr, obj->seqno, obj->ttl, obj->triptime / 10, obj->triptime % 10);
 		if (verbose)
-			printf("\tPayload: %s\n", message);
+			printf("\tPayload: %s\n", buf);
 		sleep(1);
 	}
 
