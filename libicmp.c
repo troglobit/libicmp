@@ -246,10 +246,13 @@ int icmp_recv(struct libicmp *obj, uint8_t type, int timeout, char *payload, siz
 
 		if (pfd.revents & (POLLIN | POLLPRI)) {
 			size_t datalen;
+			struct timeval now;
 
 			i = read(obj->sd, buf, BUFSIZ);
 			if (i < 0)
 				return -1;
+
+			gettimeofday(&now, NULL);
 
 			if (ip->protocol != 1 || icmp->type != type ||
 			    icmp->un.echo.id != htons(obj->id) || icmp->un.echo.sequence != htons(obj->seqno))
@@ -265,6 +268,10 @@ int icmp_recv(struct libicmp *obj, uint8_t type, int timeout, char *payload, siz
 			}
 
 			memcpy(&obj->tv, ptr, sizeof(struct timeval));
+			timersub(&now, &obj->tv, &now);
+			/* precision: tenths of milliseconds */
+			obj->triptime = now.tv_sec * 10000 + (now.tv_usec / 100);
+
 			datalen -= sizeof(struct timeval);
 			if (len < datalen)
 				datalen = len;
@@ -278,8 +285,7 @@ int icmp_recv(struct libicmp *obj, uint8_t type, int timeout, char *payload, siz
 
 int icmp_ping(struct libicmp *obj, char *payload, size_t len)
 {
-	char           buf[BUFSIZ];
-	struct timeval now;
+	char buf[BUFSIZ];
 
 	if (icmp_send(obj, ICMP_ECHO, payload, len))
 		return -1;
@@ -287,11 +293,6 @@ int icmp_ping(struct libicmp *obj, char *payload, size_t len)
 	len = icmp_recv(obj, ICMP_ECHOREPLY, 5000, buf, sizeof(buf));
 	if (len <= 0)
 		return -1;
-
-	gettimeofday(&now, NULL);
-	timersub(&now, &obj->tv, &now);
-	/* precision: tenths of milliseconds */
-	obj->triptime = now.tv_sec * 10000 + (now.tv_usec / 100);
 
 	return len;
 }
