@@ -3,7 +3,7 @@
 CC        = @gcc
 CFLAGS    = -Wall -W -Wextra
 AR        = @ar
-ARFLAGS   = crus
+ARFLAGS   = crUs
 LDFLAGS   = -L.
 LDLIBS    = -licmp
 RM        = @rm -f
