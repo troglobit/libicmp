@@ -30,18 +30,17 @@ struct libicmp {
 	int             triptime;	/* Round trip time */
 };
 
-int             icmp_resolve(char *host, struct addrinfo **addr);
-char           *icmp_ntoa   (struct addrinfo *addr, char *buf, size_t len);
-
-const char     *icmp_err2str(int err);
-int             icmp_err    (struct libicmp *obj);
-const char     *icmp_errstr (struct libicmp *obj);
-
 struct libicmp *icmp_open   (char *host, uint16_t id, uint8_t ttl);
 int             icmp_send   (struct libicmp *obj, uint8_t type,              char *payload, size_t len);
 int             icmp_recv   (struct libicmp *obj, uint8_t type, int timeout, char *payload, size_t len);
 int             icmp_ping   (struct libicmp *obj, char *payload, size_t len);
 int             icmp_close  (struct libicmp *obj);
+
+int             icmp_resolve(struct libicmp *obj, struct addrinfo **addr);
+char           *icmp_ntoa   (struct libicmp *obj, char *buf, size_t len);
+
+int             icmp_err    (struct libicmp *obj);
+const char     *icmp_errstr (struct libicmp *obj);
 
 #endif /* LIBICMP_H_ */
 

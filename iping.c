@@ -25,30 +25,11 @@
 
 #include "icmp.h"
 
-char *resolve(char *host, char *buf, size_t len)
-{
-	int err;
-	char *result;
-	struct addrinfo *addr;
-
-	err = icmp_resolve(host, &addr);
-	if (err) {
-		warnx("%s: %s", host, icmp_err2str(err));
-		return NULL;
-	}
-
-	result = icmp_ntoa(addr, buf, len);
-	freeaddrinfo(addr);
-
-	return result;
-}
-
 int main(int argc, char *argv[])
 {
-	size_t len;
-	char *host, *addr;
-	char buf[80];
-	char message[] = "iping: r u there?";
+	int   len, result = 0;
+	char *host, addr[INET_ADDRSTRLEN];
+	char  message[] = "iping: r u there?";
 	struct libicmp *obj;
 
 	if (argc < 2) {
@@ -57,28 +38,33 @@ int main(int argc, char *argv[])
 	}
 
 	host = argv[1];
-	addr = resolve(host, buf, sizeof(buf));
-	if (!addr)
-		return 1;
-
 	obj = icmp_open(host, 0x1337, 0);
 	if (!obj)
 		err(1, "Failed opening ICMP socket");
 
+	if (!icmp_ntoa(obj, addr, sizeof(addr))) {
+		warnx("%s: %s", host, icmp_errstr(obj) ?: "<nil>");
+		goto exit;
+	}
+
 	printf("PING %s (%s)\n", host, addr);
 	while (1) {
 		len = icmp_ping(obj, message, sizeof(message));
-		if (len <= 0)
-			err(1, "%s", host);
+		if (len <= 0) {
+			warnx("%s: %s", host, icmp_errstr(obj) ?: "<nil>");
+			result = 1;
+			goto exit;
+		}
 
-		printf("%zd bytes from %s (%s): icmp_req=%d ttl=%d time=%d.%d ms\n",
+		printf("%d bytes from %s (%s): icmp_req=%d ttl=%d time=%d.%d ms\n",
 		       len, host, addr, obj->seqno, obj->ttl, obj->triptime / 10, obj->triptime % 10);
 		sleep(1);
 	}
 
+exit:
 	icmp_close(obj);
 
-	return 0;
+	return result;
 }
 
 /**

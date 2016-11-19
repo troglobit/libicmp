@@ -54,19 +54,10 @@ struct libicmp *icmp_open(char *host, uint16_t id, uint8_t ttl)
 {
 	struct libicmp  *obj;
 	socklen_t        ttl_len;
-	struct addrinfo *addr;
 
-	/* Check that host exists first */
-	if (icmp_resolve(host, &addr))
-		return NULL;
-
-	freeaddrinfo(addr);
-
-	obj = malloc(sizeof(struct libicmp));
+	obj = calloc(1, sizeof(struct libicmp));
 	if (!obj)
 		return NULL;
-
-	memset(obj, 0, sizeof(struct libicmp));
 
 	obj->sd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	obj->id = id;
@@ -75,6 +66,7 @@ struct libicmp *icmp_open(char *host, uint16_t id, uint8_t ttl)
 	if (obj->sd < 0) {
 		free(obj->host);
 		free(obj);
+
 		return NULL;
 	}
 
@@ -88,10 +80,15 @@ struct libicmp *icmp_open(char *host, uint16_t id, uint8_t ttl)
 	return obj;
 }
 
-int icmp_resolve(char *host, struct addrinfo **addr)
+int icmp_resolve(struct libicmp *obj, struct addrinfo **addr)
 {
 	int             code;
 	struct addrinfo hints;
+
+	if (!obj || !addr) {
+		errno = EINVAL;
+		return -1;
+	}
 
 	res_init();		/* Reinitialize resolver every time to prevent cache misses due to
 				 * NAME-->IP DNS changes, or outages in round robin DNS setups. */
@@ -100,7 +97,7 @@ int icmp_resolve(char *host, struct addrinfo **addr)
 	hints.ai_flags = 0;
 	hints.ai_protocol = 0;	/* Any protocol */
 
-	code = getaddrinfo(host, NULL, &hints, addr);
+	code = getaddrinfo(obj->host, NULL, &hints, addr);
 	if (code) {
 		errno = EADDRNOTAVAIL;
 		return code;
@@ -109,18 +106,25 @@ int icmp_resolve(char *host, struct addrinfo **addr)
 	return 0;
 }
 
-char *icmp_ntoa(struct addrinfo *addr, char *buf, size_t len)
+char *icmp_ntoa(struct libicmp *obj, char *buf, size_t len)
 {
-	/* NI_NUMERICHOST avoids DNS lookup. */
-	if (getnameinfo(addr->ai_addr, addr->ai_addrlen, buf, len, NULL, 0, NI_NUMERICHOST))
+	char *result = buf;
+	struct addrinfo *addr;
+
+	if (!buf || len < INET_ADDRSTRLEN) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	if (icmp_resolve(obj, &addr))
 		return NULL;
 
-	return buf;
-}
+	/* NI_NUMERICHOST avoids DNS lookup. */
+	if (getnameinfo(addr->ai_addr, addr->ai_addrlen, buf, len, NULL, 0, NI_NUMERICHOST))
+		result = NULL;
+	freeaddrinfo(addr);
 
-const char *icmp_err2str(int err)
-{
-	return gai_strerror(err);
+	return result;
 }
 
 int icmp_err(struct libicmp *obj)
@@ -140,7 +144,7 @@ const char *icmp_errstr(struct libicmp *obj)
 		return NULL;
 	}
 
-	return icmp_err2str(obj->gai_code);
+	return gai_strerror(obj->gai_code);
 }
 
 int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
@@ -156,7 +160,7 @@ int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
 		return -1;
 	}
 
-	obj->gai_code = icmp_resolve(obj->host, &addr);
+	obj->gai_code = icmp_resolve(obj, &addr);
 	if (obj->gai_code)
 		return -1;
 
