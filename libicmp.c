@@ -56,7 +56,7 @@ in_cksum(u_short * buf, int nwords)
 /*
  * If your opening up a socket for listening, set both paramaters to 0
  */
-libicmp_t  *
+libicmp_t *
 icmp_open(char *host, unsigned short id, unsigned ttl)
 {
     libicmp_t       *isock;
@@ -140,7 +140,7 @@ icmp_send(libicmp_t *isock, u_int8_t type, char *payload, size_t len)
 	return 0;
     }
 
-    isock->gai_code = icmp_resolve (isock->host, &addr);
+    isock->gai_code = icmp_resolve(isock->host, &addr);
     if (isock->gai_code)
 	return 0;
 
@@ -187,7 +187,7 @@ icmp_recv(libicmp_t *isock, char *buf, u_int8_t type, int timeout)
 	int ret = 0;
 	struct pollfd pfd = { isock->sd, POLLIN | POLLPRI, 0 };
 
-	ret = poll (&pfd, 1, timeout);
+	ret = poll(&pfd, 1, timeout);
 	if (ret <= 0) {
 	    if (ret == 0)
 		errno = ETIMEDOUT;
