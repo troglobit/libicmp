@@ -1,7 +1,7 @@
 # Makefile for libicmp and iping
 
 CC        = @gcc
-CFLAGS    = -Wall -W -Werror -O4
+CFLAGS    = -Wall -W -Wextra
 AR        = @ar
 ARFLAGS   = crus
 LDFLAGS   = -L.
