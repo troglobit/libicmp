@@ -79,6 +79,10 @@ int main(int argc, char *argv[])
 			ttl = atoi(optarg);
 			break;
 
+		case 'v':
+			printf("v%s\n", PACKAGE_VERSION);
+			return 0;
+
 		case 'V':
 			verbose = 1;
 			break;
