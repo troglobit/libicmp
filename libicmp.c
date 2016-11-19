@@ -288,15 +288,16 @@ int icmp_recv(struct libicmp *obj, uint8_t type, int timeout, char *payload, siz
 }
 
 
-int icmp_ping(struct libicmp *obj, char *payload, size_t len)
+int icmp_ping(struct libicmp *obj, char *payload, size_t paylen)
 {
+	int len;
 	char buf[BUFSIZ];
 
-	if (icmp_send(obj, ICMP_ECHO, payload, len))
+	if (icmp_send(obj, ICMP_ECHO, payload, paylen))
 		return -1;
 
 	len = icmp_recv(obj, ICMP_ECHOREPLY, 5000, buf, sizeof(buf));
-	if (len <= 0)
+	if (len < 0)
 		return -1;
 
 	return len;
