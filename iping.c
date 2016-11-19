@@ -36,6 +36,7 @@ static int usage(int code)
 	       "Options:\n"
 	       "  -h          This help text\n"
 	       "  -S SOURCE   Source IP to use in ICMP datagram, from interface\n"
+	       "  -t TTL      Set IP time to live (hops)\n"
 	       "  -v          Show version information\n"
 	       "\n"
 	       "Bug report address: %-40s\n"
@@ -63,13 +64,18 @@ int main(int argc, char *argv[])
 	char *source_ip = NULL, ch;
 	char *host, addr[INET_ADDRSTRLEN];
 	char  message[] = "iping: r u there?";
+	uint8_t ttl = 0;
 	struct libicmp *obj;
 
 	ident = progname(argv[0]);
-	while ((ch = getopt(argc, argv, "hS:v")) != EOF) {
+	while ((ch = getopt(argc, argv, "hS:t:v")) != EOF) {
 		switch (ch) {
 		case 'S':
 			source_ip = optarg;
+			break;
+
+		case 't':
+			ttl = atoi(optarg);
 			break;
 
 		case '?':
@@ -85,7 +91,7 @@ int main(int argc, char *argv[])
 		return usage(1);
 
 	host = argv[optind];
-	obj = icmp_open(host, 0x1337, 0);
+	obj = icmp_open(host, 0x1337, ttl);
 	if (!obj)
 		err(1, "Failed opening ICMP socket");
 
