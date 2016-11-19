@@ -55,22 +55,22 @@ static uint16_t in_cksum(uint16_t *buf, int nwords)
 /*
  * If your opening up a socket for listening, set both paramaters to 0
  */
-libicmp_t *icmp_open(char *host, uint16_t id, uint8_t ttl)
+struct libicmp *icmp_open(char *host, uint16_t id, uint8_t ttl)
 {
-	libicmp_t       *obj;
+	struct libicmp  *obj;
 	socklen_t        ttl_len;
 	struct addrinfo *addr;
 
 	if (icmp_resolve(host, &addr))
 		return NULL;
 
-	obj = malloc(sizeof(libicmp_t));
+	obj = malloc(sizeof(struct libicmp));
 	if (!obj) {
 		freeaddrinfo(addr);
 		return NULL;
 	}
 
-	memset(obj, 0, sizeof(libicmp_t));
+	memset(obj, 0, sizeof(struct libicmp));
 
 	obj->sd = socket(AF_INET, SOCK_RAW, 1);
 	obj->id = id;
@@ -122,7 +122,7 @@ char *icmp_ntoa(struct addrinfo *addr, char *buf, size_t len)
 	return buf;
 }
 
-int icmp_send(libicmp_t *obj, uint8_t type, char *payload, size_t len)
+int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
 {
 	int              result;
 	char             buffer[BUFSIZ];
@@ -164,7 +164,7 @@ int icmp_send(libicmp_t *obj, uint8_t type, char *payload, size_t len)
 }
 
 
-size_t icmp_recv(libicmp_t *obj, char *buf, uint8_t type, int timeout)
+size_t icmp_recv(struct libicmp *obj, char *buf, uint8_t type, int timeout)
 {
 	int             i, checksum;
 	char           *ptr, buffer[BUFSIZ];
@@ -220,7 +220,7 @@ size_t icmp_recv(libicmp_t *obj, char *buf, uint8_t type, int timeout)
 }
 
 
-int icmp_ping(libicmp_t *obj, char *payload, size_t len)
+int icmp_ping(struct libicmp *obj, char *payload, size_t len)
 {
 	char           buf[BUFSIZ];
 	struct timeval now;
@@ -242,7 +242,7 @@ int icmp_ping(libicmp_t *obj, char *payload, size_t len)
 }
 
 
-int icmp_close(libicmp_t *obj)
+int icmp_close(struct libicmp *obj)
 {
 	if (!obj)
 		return errno;

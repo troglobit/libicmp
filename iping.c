@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 	char *host, *addr;
 	char buf[80];
 	char message[] = "iping: r u there?";
-	libicmp_t *isock;
+	struct libicmp *obj;
 
 	if (argc < 2) {
 		fprintf(stderr, "usage: ping <hostname>\n");
@@ -57,22 +57,22 @@ int main(int argc, char *argv[])
 	if (!addr)
 		err(1, "%s", host);
 
-	isock = icmp_open(host, 0x1337, 0);
-	if (!isock)
+	obj = icmp_open(host, 0x1337, 0);
+	if (!obj)
 		err(1, "Failed opening ICMP socket");
 
 	printf("PING %s (%s)\n", host, addr);
 	while (1) {
-		len = icmp_ping(isock, message, sizeof(message));
+		len = icmp_ping(obj, message, sizeof(message));
 		if (!len)
 			err(1, "%s", host);
 
 		printf("%zd bytes from %s (%s): icmp_req=%d ttl=%d time=%d.%d ms\n",
-		       len, host, addr, isock->seqno, isock->ttl, isock->triptime / 10, isock->triptime % 10);
+		       len, host, addr, obj->seqno, obj->ttl, obj->triptime / 10, obj->triptime % 10);
 		sleep(1);
 	}
 
-	icmp_close(isock);
+	icmp_close(obj);
 
 	return 0;
 }

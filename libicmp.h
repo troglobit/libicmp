@@ -26,7 +26,7 @@
 
 #include <netinet/ip_icmp.h>
 
-libicmp_t {
+struct libicmp {
 	int             sd;		/* File Descriptor for the ICMP Socket */
 	int             gai_code;	/* Error code from getaddrinfo() */
 	uint8_t         ttl;		/* IP unicast/multicast TTL */
@@ -37,14 +37,14 @@ libicmp_t {
 	int             triptime;	/* Round trip time */
 };
 
-int        icmp_resolve(char *host, struct addrinfo **addr);
-char      *icmp_ntoa   (struct addrinfo *addr, char *buf, size_t len);
+int             icmp_resolve(char *host, struct addrinfo **addr);
+char           *icmp_ntoa   (struct addrinfo *addr, char *buf, size_t len);
 
-libicmp_t *icmp_open   (char *host, uint16_t id, uint8_t ttl);
-size_t     icmp_recv   (libicmp_t *obj, char *buf, uint8_t type, int timeout);
-int        icmp_send   (libicmp_t *obj, uint8_t type, char *payload, size_t len);
-int        icmp_ping   (libicmp_t *obj, char *payload, size_t len);
-int        icmp_close  (libicmp_t *obj);
+struct libicmp *icmp_open   (char *host, uint16_t id, uint8_t ttl);
+size_t          icmp_recv   (struct libicmp *obj, char *buf, uint8_t type, int timeout);
+int             icmp_send   (struct libicmp *obj, uint8_t type, char *payload, size_t len);
+int             icmp_ping   (struct libicmp *obj, char *payload, size_t len);
+int             icmp_close  (struct libicmp *obj);
 
 #endif /* LIBICMP_H_ */
 
