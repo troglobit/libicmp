@@ -70,12 +70,13 @@ struct libicmp *icmp_open(char *host, uint16_t id, uint8_t ttl)
 		return NULL;
 	}
 
+	ttl_len = sizeof(obj->ttl);
 	if (ttl) {
-		ttl_len = sizeof(obj->ttl);
 		setsockopt(obj->sd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
 		setsockopt(obj->sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 		getsockopt(obj->sd, IPPROTO_IP, IP_TTL, &obj->ttl, &ttl_len);
 	}
+	getsockopt(obj->sd, IPPROTO_IP, IP_TTL, &obj->ttl, &ttl_len);
 
 	return obj;
 }
