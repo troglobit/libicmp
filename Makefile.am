@@ -2,6 +2,11 @@ lib_LTLIBRARIES     = libicmp.la
 pkgincludedir       = $(includedir)/icmp
 pkginclude_HEADERS  = icmp.h
 
+check_PROGRAMS      = example
+example_SOURCES     = example.c
+example_CPPFLAGS    = -W -Wall -Wextra
+example_LDADD       = libicmp.la
+
 sbin_PROGRAMS       = iping
 iping_SOURCES       = iping.c
 iping_CFLAGS        = -W -Wall -Wextra
