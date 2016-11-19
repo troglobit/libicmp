@@ -122,16 +122,15 @@ int main(int argc, char *argv[])
 			goto error;
 
 		len = icmp_recv(obj, ICMP_ECHOREPLY, 5000, buf, sizeof(buf));
-		if (len <= 0) {
+		if (len < 0) {
 		error:
 			warnx("%s: %s", host, icmp_errstr(obj) ?: "<nil>");
 			result = 1;
 			goto exit;
 		}
 
-		printf("%d bytes from %s (%s): icmp_req=%d ttl=%d time=%d.%d ms\n",
-		       len, host, addr, obj->seqno, obj->ttl, obj->triptime / 10, obj->triptime % 10);
-		if (verbose)
+		printf("PING reply from %s (%s): icmp_req=%d ttl=%d time=%d.%d ms\n",
+		       host, addr, obj->seqno, obj->ttl, obj->triptime / 10, obj->triptime % 10);
 			printf("\tPayload: %s\n", buf);
 		sleep(1);
 	}
