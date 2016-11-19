@@ -19,6 +19,7 @@
 #ifndef ICMP_ICMP_H_
 #define ICMP_ICMP_H_
 
+#include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>

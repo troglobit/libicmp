@@ -17,7 +17,6 @@
  */
 
 #include <errno.h>
-#include <netdb.h>
 #include <poll.h>
 #include <resolv.h>
 #include <stdio.h>
