@@ -16,8 +16,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef LIBICMP_H_
-#define LIBICMP_H_
+#ifndef ICMP_ICMP_H_
+#define ICMP_ICMP_H_
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -38,7 +38,7 @@ struct libicmp *icmp_open   (char *host, uint16_t id, uint8_t ttl);
 int             icmp_bind   (struct libicmp *obj, char *addr);
 int             icmp_send   (struct libicmp *obj, uint8_t type,              char *payload, size_t len);
 int             icmp_recv   (struct libicmp *obj, uint8_t type, int timeout, char *payload, size_t len);
-int             icmp_ping   (struct libicmp *obj, char *payload, size_t len);
+int             icmp_ping   (struct libicmp *obj,                            char *payload, size_t len);
 int             icmp_close  (struct libicmp *obj);
 
 int             icmp_resolve(struct libicmp *obj, struct addrinfo **ai);
@@ -47,7 +47,7 @@ char           *icmp_ntoa   (struct libicmp *obj, char *buf, size_t len);
 int             icmp_err    (struct libicmp *obj);
 const char     *icmp_errstr (struct libicmp *obj);
 
-#endif /* LIBICMP_H_ */
+#endif /* ICMP_ICMP_H_ */
 
 /**
  * Local Variables:
