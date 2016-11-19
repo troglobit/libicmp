@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 	printf("PING %s (%s)\n", host, addr);
 	while (1) {
 		len = icmp_ping(obj, message, sizeof(message));
-		if (!len)
+		if (len <= 0)
 			err(1, "%s", host);
 
 		printf("%zd bytes from %s (%s): icmp_req=%d ttl=%d time=%d.%d ms\n",

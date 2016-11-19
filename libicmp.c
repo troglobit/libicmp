@@ -133,12 +133,12 @@ int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
 
 	if (!obj) {
 		errno = EINVAL;
-		return 0;
+		return -1;
 	}
 
 	obj->gai_code = icmp_resolve(obj->host, &addr);
 	if (obj->gai_code)
-		return 0;
+		return -1;
 
 	memset(buffer, 0, sizeof(buffer));
 	gettimeofday(&now, NULL);
@@ -154,18 +154,16 @@ int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
 	icmp->checksum = in_cksum((u_short *) icmp, sizeof(struct icmphdr) + sizeof(struct timeval) + len);
 
 	result = sendto(obj->sd, buffer, sizeof(struct icmphdr) + sizeof(struct timeval) + len, 0,
-		     addr->ai_addr, sizeof(struct sockaddr));
+			addr->ai_addr, sizeof(struct sockaddr));
 	freeaddrinfo(addr);
-	if (result < 0) {
-		perror("sendto");
-		return 0;
-	}
+	if (result < 0)
+		return -1;
 
-	return result;
+	return 0;
 }
 
 
-size_t icmp_recv(struct libicmp *obj, char *buf, uint8_t type, int timeout)
+int icmp_recv(struct libicmp *obj, char *buf, uint8_t type, int timeout)
 {
 	int             i, checksum;
 	char           *ptr, buffer[BUFSIZ];
@@ -174,7 +172,7 @@ size_t icmp_recv(struct libicmp *obj, char *buf, uint8_t type, int timeout)
 
 	if (!obj) {
 		errno = EINVAL;
-		return 0;
+		return -1;
 	}
 
 	ip   = (struct iphdr *)buffer;
@@ -198,7 +196,7 @@ size_t icmp_recv(struct libicmp *obj, char *buf, uint8_t type, int timeout)
 
 			i = read(obj->sd, buffer, BUFSIZ);
 			if (i < 0)
-				return 0;
+				return -1;
 
 			if (ip->protocol != 1 || icmp->type != type ||
 			    icmp->un.echo.id != htons(obj->id) || icmp->un.echo.sequence != htons(obj->seqno))
@@ -209,7 +207,7 @@ size_t icmp_recv(struct libicmp *obj, char *buf, uint8_t type, int timeout)
 			datalen = i - sizeof(struct iphdr);
 			if (checksum != in_cksum((u_short *) icmp, datalen)) {
 				errno = EIO;
-				return 0;
+				return -1;
 			}
 
 			memcpy(&obj->tv, ptr, sizeof(struct timeval));
@@ -227,12 +225,12 @@ int icmp_ping(struct libicmp *obj, char *payload, size_t len)
 	struct timeval now;
 
 	obj->seqno++;
-	if (!icmp_send(obj, ICMP_ECHO, payload, len))
-		return 0;
+	if (icmp_send(obj, ICMP_ECHO, payload, len))
+		return -1;
 
 	len = icmp_recv(obj, buf, ICMP_ECHOREPLY, 5000);
-	if (!len)
-		return 0;
+	if (len <= 0)
+		return -1;
 
 	gettimeofday(&now, NULL);
 	timersub(&now, &obj->tv, &now);
