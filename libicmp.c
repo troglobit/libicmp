@@ -200,7 +200,8 @@ int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
 
 	/* ICMP Payload is our current time + any user defined payload */
 	memcpy((buffer + sizeof(struct icmphdr)), &now, sizeof(now));
-	memcpy((buffer + sizeof(struct icmphdr) + sizeof(now)), payload, len);
+	if (payload && len)
+		memcpy((buffer + sizeof(struct icmphdr) + sizeof(now)), payload, len);
 
 	icmp = (struct icmphdr *)buffer;
 	icmp->type = type;
