@@ -1,7 +1,7 @@
 /* Libicmp - A simple interface for sending and receiving ICMP datagrams.
  *
- * Copyright (c) 2000  Tim Lawless <tim.lawless@usm.edu>
- * Copyright (c) 2011  Joachim Nilsson <troglobit@vmlinux.org>
+ * Copyright (c) 2000       Tim Lawless <tim.lawless@usm.edu>
+ * Copyright (c) 2011-2016  Joachim Nilsson <troglobit@gmail.com>
  *
  * Libicmp is intended to provide a simple interface for sending and reciving
  * icmp datagrams. Beyond the obvious diffrence of using ICMP, applications

@@ -1,6 +1,6 @@
 /* iping - a very small and free ping utility to showcase libicmp
  *
- * Copyright (c) 2011  Joachim Nilsson <troglobit@vmlinux.org>
+ * Copyright (c) 2011-2016  Joachim Nilsson <troglobit@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
