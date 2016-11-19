@@ -199,17 +199,17 @@ int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
 	memset(buffer, 0, sizeof(buffer));
 	gettimeofday(&now, NULL);
 
-	/* ICMP Payload is our time now + any user defined payload */
-	memcpy((buffer + sizeof(struct icmphdr)), &now, sizeof(struct timeval));
-	memcpy((buffer + sizeof(struct icmphdr) + sizeof(struct timeval)), payload, len);
+	/* ICMP Payload is our current time + any user defined payload */
+	memcpy((buffer + sizeof(struct icmphdr)), &now, sizeof(now));
+	memcpy((buffer + sizeof(struct icmphdr) + sizeof(now)), payload, len);
 
 	icmp = (struct icmphdr *)buffer;
 	icmp->type = type;
 	icmp->un.echo.id = htons(obj->id);
 	icmp->un.echo.sequence = htons(obj->seqno);
-	icmp->checksum = in_cksum((u_short *) icmp, sizeof(struct icmphdr) + sizeof(struct timeval) + len);
+	icmp->checksum = in_cksum((u_short *)icmp, sizeof(struct icmphdr) + sizeof(now) + len);
 
-	result = sendto(obj->sd, buffer, sizeof(struct icmphdr) + sizeof(struct timeval) + len, 0,
+	result = sendto(obj->sd, buffer, sizeof(struct icmphdr) + sizeof(now) + len, 0,
 			ai->ai_addr, sizeof(struct sockaddr));
 	freeaddrinfo(ai);
 	if (result < 0)
@@ -265,20 +265,22 @@ int icmp_recv(struct libicmp *obj, uint8_t type, int timeout, char *payload, siz
 			checksum = icmp->checksum;
 			icmp->checksum = 0;
 			datalen = i - sizeof(struct iphdr);
-			if (checksum != in_cksum((u_short *) icmp, datalen)) {
+			if (checksum != in_cksum((u_short *)icmp, datalen)) {
 				errno = EIO;
 				return -1;
 			}
+			datalen -= sizeof(struct icmphdr);
 
-			memcpy(&obj->tv, ptr, sizeof(struct timeval));
+			memcpy(&obj->tv, ptr, sizeof(obj->tv));
 			timersub(&now, &obj->tv, &now);
+
 			/* precision: tenths of milliseconds */
 			obj->triptime = now.tv_sec * 10000 + (now.tv_usec / 100);
 
-			datalen -= sizeof(struct timeval);
+			datalen -= sizeof(obj->tv);
 			if (len < datalen)
 				datalen = len;
-			memcpy(payload, ptr + sizeof(struct timeval), datalen);
+			memcpy(payload, ptr + sizeof(obj->tv), datalen);
 
 			return datalen;
 		}
