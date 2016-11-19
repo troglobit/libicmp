@@ -1,4 +1,4 @@
-AC_INIT(libICMP, 1.0-dev, https://github.com/troglobit/libicmp/issues, libicmp)
+AC_INIT(libICMP, 1.0-dev, https://github.com/troglobit/libicmp/issues, libicmp, https://github.com/troglobit/libicmp)
 AM_INIT_AUTOMAKE([1.11 foreign no-dist-gzip dist-xz])
 AM_SILENT_RULES([yes])
 
