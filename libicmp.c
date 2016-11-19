@@ -254,6 +254,7 @@ int icmp_recv(struct libicmp *obj, uint8_t type, int timeout, char *payload, siz
 			if (ip->protocol != 1 || icmp->type != type ||
 			    icmp->un.echo.id != htons(obj->id) || icmp->un.echo.sequence != htons(obj->seqno))
 				continue;
+			obj->seqno++;
 
 			checksum = icmp->checksum;
 			icmp->checksum = 0;
@@ -280,7 +281,6 @@ int icmp_ping(struct libicmp *obj, char *payload, size_t len)
 	char           buf[BUFSIZ];
 	struct timeval now;
 
-	obj->seqno++;
 	if (icmp_send(obj, ICMP_ECHO, payload, len))
 		return -1;
 
