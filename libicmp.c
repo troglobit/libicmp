@@ -68,7 +68,7 @@ struct libicmp *icmp_open(char *host, uint16_t id, uint8_t ttl)
 
 	memset(obj, 0, sizeof(struct libicmp));
 
-	obj->sd = socket(AF_INET, SOCK_RAW, 1);
+	obj->sd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	obj->id = id;
 	obj->host = strdup(host);
 
