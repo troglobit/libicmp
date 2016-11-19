@@ -15,7 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <errno.h>
+#include <err.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -24,9 +24,6 @@
 #include <unistd.h>
 
 #include "libicmp.h"
-
-#define ERROR(fmt, args...) fprintf(stderr, "%s: " fmt, __progname, ##args)
-extern char *__progname;
 
 char *resolve(char *host, char *buf, size_t len)
 {
@@ -57,24 +54,21 @@ int main(int argc, char *argv[])
 
     host = argv[1];
     addr = resolve(host, buf, sizeof(buf));
-    if (!addr) {
-	ERROR("%s for %s\n", strerror (errno), host);
-    }
+    if (!addr)
+	err(1, "%s", host);
 
     isock = icmp_open(host, 0x1337, 0);
-    if (!isock) {
-	ERROR("Failed to open ICMP socket: %s\n", strerror (errno));
-	return 0;
-    }
+    if (!isock)
+	err(1, "Failed opening ICMP socket");
 
     printf("PING %s (%s)\n", host, addr);
     while (1) {
 	len = icmp_ping(isock, message, sizeof(message));
 	if (!len)
-	    ERROR("%s for %s\n", strerror (errno), host);
-	else
-	    printf("%zd bytes from %s (%s): icmp_req=%d ttl=%d time=%ld.%ld ms\n",
-		   len, host, addr, isock->seqno, isock->ttl, isock->triptime / 10, isock->triptime % 10);
+	    err(1, "%s", host);
+
+	printf("%zd bytes from %s (%s): icmp_req=%d ttl=%d time=%ld.%ld ms\n",
+	       len, host, addr, isock->seqno, isock->ttl, isock->triptime / 10, isock->triptime % 10);
 	sleep(1);
     }
 
