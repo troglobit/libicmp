@@ -111,7 +111,8 @@ int icmp_bind(struct libicmp *obj, char *addr)
 		return -1;
 	}
 
-	if (do_resolve(addr, &ai))
+	obj->gai_code = do_resolve(addr, &ai);
+	if (obj->gai_code)
 		return -1;
 
 	result = bind(obj->sd, ai->ai_addr, ai->ai_addrlen);
@@ -127,7 +128,7 @@ int icmp_resolve(struct libicmp *obj, struct addrinfo **ai)
 		return -1;
 	}
 
-	return do_resolve(obj->host, ai);
+	return obj->gai_code = do_resolve(obj->host, ai);
 }
 
 char *icmp_ntoa(struct libicmp *obj, char *buf, size_t len)
@@ -140,7 +141,8 @@ char *icmp_ntoa(struct libicmp *obj, char *buf, size_t len)
 		return NULL;
 	}
 
-	if (icmp_resolve(obj, &ai))
+	obj->gai_code = icmp_resolve(obj, &ai);
+	if (obj->gai_code)
 		return NULL;
 
 	/* NI_NUMERICHOST avoids DNS lookup. */
