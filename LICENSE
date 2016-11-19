@@ -1,12 +1,5 @@
-Libicmp - A simple interface for sending and receiving ICMP datagrams.
-
 Copyright (c) 2000       Tim Lawless <tim.lawless@usm.edu>
 Copyright (c) 2011-2016  Joachim Nilsson <troglobit@gmail.com>
-
-Libicmp is intended to provide a simple interface for sending and reciving
-icmp datagrams. Beyond the obvious diffrence of using ICMP, applications
-Using this interface would behave much in the same way an UDP application
-behaves. 
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
