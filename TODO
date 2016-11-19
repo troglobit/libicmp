@@ -1,4 +1,4 @@
 
 * Integrate gai error codes better, probably create separate icmp_error.h code list.
-* Investigate using BSD ping6 instead as base for libicmp => license change.
+* Investigate using BSD ping6 instead as base for libICMP => license change.
 

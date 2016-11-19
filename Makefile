@@ -1,4 +1,4 @@
-# Makefile for libicmp and iping
+# Makefile for libICMP and iping
 
 CC        = @gcc
 CFLAGS    = -Wall -W -Wextra

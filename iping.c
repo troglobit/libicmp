@@ -1,4 +1,4 @@
-/* iping - a very small and free ping utility to showcase libicmp
+/* iping - a very small and free ping utility to showcase libICMP
  *
  * Copyright (c) 2011-2016  Joachim Nilsson <troglobit@gmail.com>
  *
