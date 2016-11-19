@@ -80,15 +80,10 @@ struct libicmp *icmp_open(char *host, uint16_t id, uint8_t ttl)
 	return obj;
 }
 
-int icmp_resolve(struct libicmp *obj, struct addrinfo **addr)
+static int do_resolve(char *addr, struct addrinfo **ai)
 {
 	int             code;
 	struct addrinfo hints;
-
-	if (!obj || !addr) {
-		errno = EINVAL;
-		return -1;
-	}
 
 	res_init();		/* Reinitialize resolver every time to prevent cache misses due to
 				 * NAME-->IP DNS changes, or outages in round robin DNS setups. */
@@ -97,7 +92,7 @@ int icmp_resolve(struct libicmp *obj, struct addrinfo **addr)
 	hints.ai_flags = 0;
 	hints.ai_protocol = 0;	/* Any protocol */
 
-	code = getaddrinfo(obj->host, NULL, &hints, addr);
+	code = getaddrinfo(addr, NULL, &hints, ai);
 	if (code) {
 		errno = EADDRNOTAVAIL;
 		return code;
@@ -106,23 +101,52 @@ int icmp_resolve(struct libicmp *obj, struct addrinfo **addr)
 	return 0;
 }
 
+int icmp_bind(struct libicmp *obj, char *addr)
+{
+	int result;
+	struct addrinfo *ai;
+
+	if (!obj || !addr) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	if (do_resolve(addr, &ai))
+		return -1;
+
+	result = bind(obj->sd, ai->ai_addr, ai->ai_addrlen);
+	freeaddrinfo(ai);
+
+	return result;
+}
+
+int icmp_resolve(struct libicmp *obj, struct addrinfo **ai)
+{
+	if (!obj || !ai) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return do_resolve(obj->host, ai);
+}
+
 char *icmp_ntoa(struct libicmp *obj, char *buf, size_t len)
 {
 	char *result = buf;
-	struct addrinfo *addr;
+	struct addrinfo *ai;
 
 	if (!buf || len < INET_ADDRSTRLEN) {
 		errno = EINVAL;
 		return NULL;
 	}
 
-	if (icmp_resolve(obj, &addr))
+	if (icmp_resolve(obj, &ai))
 		return NULL;
 
 	/* NI_NUMERICHOST avoids DNS lookup. */
-	if (getnameinfo(addr->ai_addr, addr->ai_addrlen, buf, len, NULL, 0, NI_NUMERICHOST))
+	if (getnameinfo(ai->ai_addr, ai->ai_addrlen, buf, len, NULL, 0, NI_NUMERICHOST))
 		result = NULL;
-	freeaddrinfo(addr);
+	freeaddrinfo(ai);
 
 	return result;
 }
@@ -153,14 +177,14 @@ int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
 	char             buffer[BUFSIZ];
 	struct timeval   now;
 	struct icmphdr  *icmp;
-	struct addrinfo *addr;
+	struct addrinfo *ai;
 
 	if (!obj) {
 		errno = EINVAL;
 		return -1;
 	}
 
-	obj->gai_code = icmp_resolve(obj, &addr);
+	obj->gai_code = icmp_resolve(obj, &ai);
 	if (obj->gai_code)
 		return -1;
 
@@ -178,8 +202,8 @@ int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
 	icmp->checksum = in_cksum((u_short *) icmp, sizeof(struct icmphdr) + sizeof(struct timeval) + len);
 
 	result = sendto(obj->sd, buffer, sizeof(struct icmphdr) + sizeof(struct timeval) + len, 0,
-			addr->ai_addr, sizeof(struct sockaddr));
-	freeaddrinfo(addr);
+			ai->ai_addr, sizeof(struct sockaddr));
+	freeaddrinfo(ai);
 	if (result < 0)
 		return -1;
 

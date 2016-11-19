@@ -31,12 +31,13 @@ struct libicmp {
 };
 
 struct libicmp *icmp_open   (char *host, uint16_t id, uint8_t ttl);
+int             icmp_bind   (struct libicmp *obj, char *addr);
 int             icmp_send   (struct libicmp *obj, uint8_t type,              char *payload, size_t len);
 int             icmp_recv   (struct libicmp *obj, uint8_t type, int timeout, char *payload, size_t len);
 int             icmp_ping   (struct libicmp *obj, char *payload, size_t len);
 int             icmp_close  (struct libicmp *obj);
 
-int             icmp_resolve(struct libicmp *obj, struct addrinfo **addr);
+int             icmp_resolve(struct libicmp *obj, struct addrinfo **ai);
 char           *icmp_ntoa   (struct libicmp *obj, char *buf, size_t len);
 
 int             icmp_err    (struct libicmp *obj);
