@@ -18,9 +18,6 @@
 
 #include <errno.h>
 #include <netdb.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
 #include <poll.h>
 #include <resolv.h>
 #include <stdio.h>
