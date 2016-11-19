@@ -163,7 +163,7 @@ int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
 }
 
 
-int icmp_recv(struct libicmp *obj, char *buf, uint8_t type, int timeout)
+int icmp_recv(struct libicmp *obj, uint8_t type, int timeout, char *payload, size_t len)
 {
 	int             i, checksum;
 	char           *ptr, buffer[BUFSIZ];
@@ -211,7 +211,10 @@ int icmp_recv(struct libicmp *obj, char *buf, uint8_t type, int timeout)
 			}
 
 			memcpy(&obj->tv, ptr, sizeof(struct timeval));
-			memcpy(buf, ptr + sizeof(struct timeval), datalen - sizeof(struct timeval));
+			datalen -= sizeof(struct timeval);
+			if (len < datalen)
+				datalen = len;
+			memcpy(payload, ptr + sizeof(struct timeval), datalen);
 
 			return datalen;
 		}
@@ -228,7 +231,7 @@ int icmp_ping(struct libicmp *obj, char *payload, size_t len)
 	if (icmp_send(obj, ICMP_ECHO, payload, len))
 		return -1;
 
-	len = icmp_recv(obj, buf, ICMP_ECHOREPLY, 5000);
+	len = icmp_recv(obj, ICMP_ECHOREPLY, 5000, buf, sizeof(buf));
 	if (len <= 0)
 		return -1;
 
