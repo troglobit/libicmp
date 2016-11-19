@@ -31,7 +31,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "libicmp.h"
+#include "icmp.h"
 
 static uint16_t in_cksum(uint16_t *buf, int nwords)
 {

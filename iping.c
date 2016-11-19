@@ -23,7 +23,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "libicmp.h"
+#include "icmp.h"
 
 char *resolve(char *host, char *buf, size_t len)
 {

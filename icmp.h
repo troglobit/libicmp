@@ -19,8 +19,6 @@
 #ifndef LIBICMP_H_
 #define LIBICMP_H_
 
-#include <netinet/ip_icmp.h>
-
 struct libicmp {
 	int             sd;		/* File Descriptor for the ICMP Socket */
 	int             gai_code;	/* Error code from getaddrinfo() */

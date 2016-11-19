@@ -1,12 +1,13 @@
 lib_LTLIBRARIES     = libicmp.la
-pkginclude_HEADERS  = libicmp.h
+pkgincludedir       = $(includedir)/icmp
+pkginclude_HEADERS  = icmp.h
 
 sbin_PROGRAMS       = iping
 iping_SOURCES       = iping.c
 iping_CFLAGS        = -W -Wall -Wextra
 iping_LDADD         = libicmp.la
 
-libicmp_la_SOURCES  = libicmp.c libicmp.h
+libicmp_la_SOURCES  = libicmp.c icmp.h
 libicmp_la_CFLAGS   = -W -Wall -Wextra
 libicmp_la_LDFLAGS  = $(AM_LDFLAGS) -version-info 0:0:0
 
