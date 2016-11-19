@@ -166,7 +166,7 @@ int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
 int icmp_recv(struct libicmp *obj, uint8_t type, int timeout, char *payload, size_t len)
 {
 	int             i, checksum;
-	char           *ptr, buffer[BUFSIZ];
+	char           *ptr, buf[BUFSIZ];
 	struct iphdr   *ip;
 	struct icmphdr *icmp;
 
@@ -175,9 +175,9 @@ int icmp_recv(struct libicmp *obj, uint8_t type, int timeout, char *payload, siz
 		return -1;
 	}
 
-	ip   = (struct iphdr *)buffer;
-	icmp = (struct icmphdr *)(buffer + sizeof(struct iphdr));
-	ptr  = buffer + sizeof(struct iphdr) + sizeof(struct icmphdr);
+	ip   = (struct iphdr *)buf;
+	icmp = (struct icmphdr *)(buf + sizeof(struct iphdr));
+	ptr  = buf + sizeof(struct iphdr) + sizeof(struct icmphdr);
 
 	while (1) {
 		int           result = 0;
@@ -194,7 +194,7 @@ int icmp_recv(struct libicmp *obj, uint8_t type, int timeout, char *payload, siz
 		if (pfd.revents & (POLLIN | POLLPRI)) {
 			size_t datalen;
 
-			i = read(obj->sd, buffer, BUFSIZ);
+			i = read(obj->sd, buf, BUFSIZ);
 			if (i < 0)
 				return -1;
 
