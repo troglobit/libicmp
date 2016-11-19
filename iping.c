@@ -15,8 +15,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <err.h>
+#include <config.h>
 #include <arpa/inet.h>
+#include <err.h>
+#include <getopt.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,25 +27,75 @@
 
 #include "icmp.h"
 
+char *ident = PACKAGE_NAME;
+
+static int usage(int code)
+{
+	printf("Usage: %s [OPTIONS] HOST\n"
+	       "\n"
+	       "Options:\n"
+	       "  -h          This help text\n"
+	       "  -S SOURCE   Source IP to use in ICMP datagram, from interface\n"
+	       "  -v          Show version information\n"
+	       "\n"
+	       "Bug report address: %-40s\n"
+	       "Project homepage: %s\n\n", ident, PACKAGE_BUGREPORT, PACKAGE_URL);
+
+	return code;
+}
+
+static char *progname(char *arg0)
+{
+       char *nm;
+
+       nm = strrchr(arg0, '/');
+       if (nm)
+	       nm++;
+       else
+	       nm = arg0;
+
+       return nm;
+}
+
 int main(int argc, char *argv[])
 {
 	int   len, result = 0;
+	char *source_ip = NULL, ch;
 	char *host, addr[INET_ADDRSTRLEN];
 	char  message[] = "iping: r u there?";
 	struct libicmp *obj;
 
-	if (argc < 2) {
-		fprintf(stderr, "usage: ping <hostname>\n");
-		return 1;
+	ident = progname(argv[0]);
+	while ((ch = getopt(argc, argv, "hS:v")) != EOF) {
+		switch (ch) {
+		case 'S':
+			source_ip = optarg;
+			break;
+
+		case '?':
+		case 'h':
+			return usage(0);
+
+		default:
+			return usage(1);
+		}
 	}
 
-	host = argv[1];
+	if (optind == argc)
+		return usage(1);
+
+	host = argv[optind];
 	obj = icmp_open(host, 0x1337, 0);
 	if (!obj)
 		err(1, "Failed opening ICMP socket");
 
 	if (!icmp_ntoa(obj, addr, sizeof(addr))) {
 		warnx("%s: %s", host, icmp_errstr(obj) ?: "<nil>");
+		goto exit;
+	}
+
+	if (source_ip && icmp_bind(obj, source_ip)) {
+		warnx("%s: %s", source_ip, icmp_errstr(obj) ?: "<nil>");
 		goto exit;
 	}
 
