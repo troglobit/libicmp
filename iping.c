@@ -27,11 +27,15 @@
 
 char *resolve(char *host, char *buf, size_t len)
 {
+	int err;
 	char *result;
 	struct addrinfo *addr;
 
-	if (icmp_resolve(host, &addr))
+	err = icmp_resolve(host, &addr);
+	if (err) {
+		warnx("%s: %s", host, icmp_err2str(err));
 		return NULL;
+	}
 
 	result = icmp_ntoa(addr, buf, len);
 	freeaddrinfo(addr);
@@ -55,7 +59,7 @@ int main(int argc, char *argv[])
 	host = argv[1];
 	addr = resolve(host, buf, sizeof(buf));
 	if (!addr)
-		err(1, "%s", host);
+		return 1;
 
 	obj = icmp_open(host, 0x1337, 0);
 	if (!obj)

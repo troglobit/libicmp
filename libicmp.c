@@ -102,7 +102,7 @@ int icmp_resolve(char *host, struct addrinfo **addr)
 
 	code = getaddrinfo(host, NULL, &hints, addr);
 	if (code) {
-		errno = EINVAL;
+		errno = EADDRNOTAVAIL;
 		return code;
 	}
 
@@ -116,6 +116,31 @@ char *icmp_ntoa(struct addrinfo *addr, char *buf, size_t len)
 		return NULL;
 
 	return buf;
+}
+
+const char *icmp_err2str(int err)
+{
+	return gai_strerror(err);
+}
+
+int icmp_err(struct libicmp *obj)
+{
+	if (!obj) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return obj->gai_code;
+}
+
+const char *icmp_errstr(struct libicmp *obj)
+{
+	if (!obj) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	return icmp_err2str(obj->gai_code);
 }
 
 int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
