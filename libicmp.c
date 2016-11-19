@@ -61,14 +61,15 @@ struct libicmp *icmp_open(char *host, uint16_t id, uint8_t ttl)
 	socklen_t        ttl_len;
 	struct addrinfo *addr;
 
+	/* Check that host exists first */
 	if (icmp_resolve(host, &addr))
 		return NULL;
 
+	freeaddrinfo(addr);
+
 	obj = malloc(sizeof(struct libicmp));
-	if (!obj) {
-		freeaddrinfo(addr);
+	if (!obj)
 		return NULL;
-	}
 
 	memset(obj, 0, sizeof(struct libicmp));
 
