@@ -170,7 +170,10 @@ const char *icmp_errstr(struct libicmp *obj)
 		return NULL;
 	}
 
-	return gai_strerror(obj->gai_code);
+	if (obj->gai_code)
+		return gai_strerror(obj->gai_code);
+
+	return strerror(errno);
 }
 
 int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
