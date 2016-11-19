@@ -37,6 +37,7 @@ static int usage(int code)
 	       "  -h          This help text\n"
 	       "  -S SOURCE   Source IP to use in ICMP datagram, from interface\n"
 	       "  -t TTL      Set IP time to live (hops)\n"
+	       "  -V          Verbose operation, dump payload, etc.\n"
 	       "  -v          Show version information\n"
 	       "\n"
 	       "Bug report address: %-40s\n"
@@ -60,7 +61,7 @@ static char *progname(char *arg0)
 
 int main(int argc, char *argv[])
 {
-	int   len, result = 0;
+	int   len, result = 0, verbose = 0;
 	char *source_ip = NULL, ch;
 	char *host, addr[INET_ADDRSTRLEN];
 	char  message[] = "iping: r u there?";
@@ -68,7 +69,7 @@ int main(int argc, char *argv[])
 	struct libicmp *obj;
 
 	ident = progname(argv[0]);
-	while ((ch = getopt(argc, argv, "hS:t:v")) != EOF) {
+	while ((ch = getopt(argc, argv, "hS:t:vV")) != EOF) {
 		switch (ch) {
 		case 'S':
 			source_ip = optarg;
@@ -76,6 +77,10 @@ int main(int argc, char *argv[])
 
 		case 't':
 			ttl = atoi(optarg);
+			break;
+
+		case 'V':
+			verbose = 1;
 			break;
 
 		case '?':
@@ -116,6 +121,8 @@ int main(int argc, char *argv[])
 
 		printf("%d bytes from %s (%s): icmp_req=%d ttl=%d time=%d.%d ms\n",
 		       len, host, addr, obj->seqno, obj->ttl, obj->triptime / 10, obj->triptime % 10);
+		if (verbose)
+			printf("\tPayload: %s\n", message);
 		sleep(1);
 	}
 
