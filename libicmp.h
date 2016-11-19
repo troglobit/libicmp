@@ -26,40 +26,31 @@
 
 #include <netinet/ip_icmp.h>
 
-#define MAX_DGRAM_LEN  65502
-#define BUFSIZE        65536
-
-extern int      silent;
-
-struct libicmp {
-    int             sd;         /* File Descriptor for the ICMP Socket */
-    int             gai_code;   /* Error code from getaddrinfo() */
-    u_int8_t        ttl;        /* IP unicast/multicast TTL */
-    u_int16_t       id;         /* The ICMP_ECHO ID */
-    u_int16_t       seqno;      /* Sequence # */
-    char           *host;	   /* Original hostname to ping. */
-    struct timeval  tv;         /* Packet send time */
-    long            triptime;   /* Round trip time */
+libicmp_t {
+	int             sd;		/* File Descriptor for the ICMP Socket */
+	int             gai_code;	/* Error code from getaddrinfo() */
+	uint8_t         ttl;		/* IP unicast/multicast TTL */
+	uint16_t        id;		/* The ICMP_ECHO ID */
+	uint16_t        seqno;		/* Sequence # */
+	char           *host;		/* Original hostname to ping. */
+	struct timeval  tv;		/* Packet send time */
+	int             triptime;	/* Round trip time */
 };
 
-typedef struct libicmp libicmp_t;
+int        icmp_resolve(char *host, struct addrinfo **addr);
+char      *icmp_ntoa   (struct addrinfo *addr, char *buf, size_t len);
 
-int         icmp_resolve(char *host, struct addrinfo **addr);
-char       *icmp_ntoa(struct addrinfo *addr, char *buf, size_t len);
-
-libicmp_t  *icmp_open(char *host, unsigned short id, unsigned ttl);
-size_t      icmp_recv(libicmp_t *isock, char *buf, u_int8_t type, int timeout);
-int         icmp_send(libicmp_t *isock, u_int8_t type, char *payload, size_t len);
-int         icmp_ping(libicmp_t *isock, char *payload, size_t len);
-int         icmp_close(libicmp_t *isock);
+libicmp_t *icmp_open   (char *host, uint16_t id, uint8_t ttl);
+size_t     icmp_recv   (libicmp_t *obj, char *buf, uint8_t type, int timeout);
+int        icmp_send   (libicmp_t *obj, uint8_t type, char *payload, size_t len);
+int        icmp_ping   (libicmp_t *obj, char *payload, size_t len);
+int        icmp_close  (libicmp_t *obj);
 
 #endif /* LIBICMP_H_ */
 
 /**
  * Local Variables:
- *  version-control: t
  *  indent-tabs-mode: t
- *  c-file-style: "ellemtel"
- *  c-basic-offset: 4
+ *  c-file-style: "linux"
  * End:
  */

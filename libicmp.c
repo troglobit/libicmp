@@ -38,236 +38,227 @@
 
 #include "libicmp.h"
 
-static u_short
-in_cksum(u_short * buf, int nwords)
+static uint16_t in_cksum(uint16_t *buf, int nwords)
 {
-    u_long sum;
+	uint32_t sum;
 
-    for (sum = 0; nwords > 0; nwords--)
-	sum += *buf++;
+	for (sum = 0; nwords > 0; nwords--)
+		sum += *buf++;
 
-    sum  = (sum >> 16) + (sum & 0xffff);
-    sum += (sum >> 16);
+	sum  = (sum >> 16) + (sum & 0xffff);
+	sum += (sum >> 16);
 
-    return ~sum;
+	return ~sum;
 }
 
 
 /*
  * If your opening up a socket for listening, set both paramaters to 0
  */
-libicmp_t *
-icmp_open(char *host, unsigned short id, unsigned ttl)
+libicmp_t *icmp_open(char *host, uint16_t id, uint8_t ttl)
 {
-    libicmp_t       *isock;
-    socklen_t        ttl_len;
-    struct addrinfo *addr;
+	libicmp_t       *obj;
+	socklen_t        ttl_len;
+	struct addrinfo *addr;
 
-    if (icmp_resolve(host, &addr))
-	return NULL;
+	if (icmp_resolve(host, &addr))
+		return NULL;
 
-    isock = malloc(sizeof(libicmp_t));
-    if (!isock) {
+	obj = malloc(sizeof(libicmp_t));
+	if (!obj) {
+		freeaddrinfo(addr);
+		return NULL;
+	}
+
+	memset(obj, 0, sizeof(libicmp_t));
+
+	obj->sd = socket(AF_INET, SOCK_RAW, 1);
+	obj->id = id;
+	obj->host = strdup(host);
+
+	if (obj->sd < 0) {
+		free(obj->host);
+		free(obj);
+		return NULL;
+	}
+
+	if (ttl) {
+		ttl_len = sizeof(obj->ttl);
+		setsockopt(obj->sd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
+		setsockopt(obj->sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+		getsockopt(obj->sd, IPPROTO_IP, IP_TTL, &obj->ttl, &ttl_len);
+	}
+
+	return obj;
+}
+
+int icmp_resolve(char *host, struct addrinfo **addr)
+{
+	int             code;
+	struct addrinfo hints;
+
+	res_init();		/* Reinitialize resolver every time to prevent cache misses due to
+				 * NAME-->IP DNS changes, or outages in round robin DNS setups. */
+
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_flags = 0;
+	hints.ai_protocol = 0;	/* Any protocol */
+
+	code = getaddrinfo(host, NULL, &hints, addr);
+	if (code) {
+		errno = EINVAL;
+		return code;
+	}
+
+	return 0;
+}
+
+char *icmp_ntoa(struct addrinfo *addr, char *buf, size_t len)
+{
+	/* NI_NUMERICHOST avoids DNS lookup. */
+	if (getnameinfo(addr->ai_addr, addr->ai_addrlen, buf, len, NULL, 0, NI_NUMERICHOST))
+		return NULL;
+
+	return buf;
+}
+
+int icmp_send(libicmp_t *obj, uint8_t type, char *payload, size_t len)
+{
+	int              result;
+	char             buffer[BUFSIZ];
+	struct timeval   now;
+	struct icmphdr  *icmp;
+	struct addrinfo *addr;
+
+	if (!obj) {
+		errno = EINVAL;
+		return 0;
+	}
+
+	obj->gai_code = icmp_resolve(obj->host, &addr);
+	if (obj->gai_code)
+		return 0;
+
+	memset(buffer, 0, sizeof(buffer));
+	gettimeofday(&now, NULL);
+
+	/* ICMP Payload is our time now + any user defined payload */
+	memcpy((buffer + sizeof(struct icmphdr)), &now, sizeof(struct timeval));
+	memcpy((buffer + sizeof(struct icmphdr) + sizeof(struct timeval)), payload, len);
+
+	icmp = (struct icmphdr *)buffer;
+	icmp->type = type;
+	icmp->un.echo.id = htons(obj->id);
+	icmp->un.echo.sequence = htons(obj->seqno);
+	icmp->checksum = in_cksum((u_short *) icmp, sizeof(struct icmphdr) + sizeof(struct timeval) + len);
+
+	result = sendto(obj->sd, buffer, sizeof(struct icmphdr) + sizeof(struct timeval) + len, 0,
+		     addr->ai_addr, sizeof(struct sockaddr));
 	freeaddrinfo(addr);
-	return NULL;
-    }
-
-    bzero(isock, sizeof(libicmp_t));
-
-    isock->sd   = socket(AF_INET, SOCK_RAW, 1);
-    isock->id   = id;
-    isock->host = strdup(host);
-
-    if (isock->sd < 0) {
-	free(isock->host);
-	free(isock);
-	return NULL;
-    }
-
-    if (ttl) {
-	ttl_len = sizeof(isock->ttl);
-	setsockopt(isock->sd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
-	setsockopt(isock->sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
-	getsockopt(isock->sd, IPPROTO_IP, IP_TTL, &isock->ttl, &ttl_len);
-    }
-
-    return isock;
-}
-
-int
-icmp_resolve(char *host, struct addrinfo **addr)
-{
-    int code;
-    struct addrinfo hints;
-
-    res_init(); /* Reinitialize resolver every time to prevent cache misses due to
-		 * NAME-->IP DNS changes, or outages in round robin DNS setups. */
-
-    memset(&hints, 0, sizeof(struct addrinfo));
-    hints.ai_flags = 0;
-    hints.ai_protocol = 0;          /* Any protocol */
-
-    code = getaddrinfo(host, NULL, &hints, addr);
-    if (code) {
-	errno = EINVAL;
-	return code;
-    }
-
-    return 0;
-}
-
-char *
-icmp_ntoa(struct addrinfo *addr, char *buf, size_t len)
-{
-    /* NI_NUMERICHOST avoids DNS lookup. */
-    if (getnameinfo(addr->ai_addr, addr->ai_addrlen, buf, len, NULL, 0, NI_NUMERICHOST))
-	return NULL;
-
-    return buf;
-}
-
-int
-icmp_send(libicmp_t *isock, u_int8_t type, char *payload, size_t len)
-{
-    int              i;
-    char             buffer[BUFSIZE];
-    struct icmphdr  *icmp = (struct icmphdr *)buffer;
-    struct timeval   now;
-    struct addrinfo *addr;
-
-    if (!isock) {
-	errno = EINVAL;
-	return 0;
-    }
-
-    isock->gai_code = icmp_resolve(isock->host, &addr);
-    if (isock->gai_code)
-	return 0;
-
-    bzero(buffer, BUFSIZE);
-    gettimeofday(&now, NULL);
-
-    /* ICMP Payload is our time now + any user defined payload */
-    memcpy((buffer + sizeof(struct icmphdr)), &now, sizeof(struct timeval));
-    memcpy((buffer + sizeof(struct icmphdr) + sizeof(struct timeval)), payload, len);
-
-    icmp->type = type;
-    icmp->un.echo.id = htons(isock->id);
-    icmp->un.echo.sequence = htons(isock->seqno);
-    icmp->checksum = in_cksum((u_short *)icmp, sizeof(struct icmphdr) + sizeof(struct timeval) + len);
-
-    i = sendto(isock->sd, buffer, sizeof(struct icmphdr) + sizeof(struct timeval) + len, 0,
-	       addr->ai_addr, sizeof(struct sockaddr));
-    freeaddrinfo(addr);
-    if (i < 0) {
-	perror("sendto");
-	return 0;
-    }
-
-    return i;
-}
-
-
-size_t
-icmp_recv(libicmp_t *isock, char *buf, u_int8_t type, int timeout)
-{
-    int             i, checksum;
-    char           *ptr;
-    char            buffer[BUFSIZE];
-    struct iphdr   *ip   = (struct iphdr *)buffer;
-    struct icmphdr *icmp = (struct icmphdr *)(buffer + sizeof(struct iphdr));
-
-    if (!isock) {
-	errno = EINVAL;
-	return 0;
-    }
-
-    ptr = buffer + sizeof(struct iphdr) + sizeof(struct icmphdr);
-    while (1) {
-	int ret = 0;
-	struct pollfd pfd = { isock->sd, POLLIN | POLLPRI, 0 };
-
-	ret = poll(&pfd, 1, timeout);
-	if (ret <= 0) {
-	    if (ret == 0)
-		errno = ETIMEDOUT;
-
-	    return 0;
+	if (result < 0) {
+		perror("sendto");
+		return 0;
 	}
 
-	if (pfd.revents & (POLLIN | POLLPRI)) {
-	    size_t datalen;
+	return result;
+}
 
-	    i = read(isock->sd, buffer, BUFSIZE);
-	    if (i < 0)
+
+size_t icmp_recv(libicmp_t *obj, char *buf, uint8_t type, int timeout)
+{
+	int             i, checksum;
+	char           *ptr, buffer[BUFSIZ];
+	struct iphdr   *ip;
+	struct icmphdr *icmp;
+
+	if (!obj) {
+		errno = EINVAL;
 		return 0;
-
-	    if (ip->protocol != 1 || icmp->type != type ||
-		icmp->un.echo.id != htons(isock->id) ||
-		icmp->un.echo.sequence != htons(isock->seqno))
-		continue;
-
-	    checksum       = icmp->checksum;
-	    icmp->checksum = 0;
-	    datalen        = i - sizeof(struct iphdr);
-	    if (checksum != in_cksum((u_short *)icmp, datalen)) {
-		errno = EIO;
-		return 0;
-	    }
-
-	    memcpy(&isock->tv, ptr, sizeof(struct timeval));
-	    memcpy(buf, ptr + sizeof(struct timeval), datalen - sizeof(struct timeval));
-
-	    return datalen;
 	}
-    }
+
+	ip   = (struct iphdr *)buffer;
+	icmp = (struct icmphdr *)(buffer + sizeof(struct iphdr));
+	ptr  = buffer + sizeof(struct iphdr) + sizeof(struct icmphdr);
+
+	while (1) {
+		int           result = 0;
+		struct pollfd pfd = { obj->sd, POLLIN | POLLPRI, 0 };
+
+		result = poll(&pfd, 1, timeout);
+		if (result <= 0) {
+			if (result == 0)
+				errno = ETIMEDOUT;
+
+			return 0;
+		}
+
+		if (pfd.revents & (POLLIN | POLLPRI)) {
+			size_t datalen;
+
+			i = read(obj->sd, buffer, BUFSIZ);
+			if (i < 0)
+				return 0;
+
+			if (ip->protocol != 1 || icmp->type != type ||
+			    icmp->un.echo.id != htons(obj->id) || icmp->un.echo.sequence != htons(obj->seqno))
+				continue;
+
+			checksum = icmp->checksum;
+			icmp->checksum = 0;
+			datalen = i - sizeof(struct iphdr);
+			if (checksum != in_cksum((u_short *) icmp, datalen)) {
+				errno = EIO;
+				return 0;
+			}
+
+			memcpy(&obj->tv, ptr, sizeof(struct timeval));
+			memcpy(buf, ptr + sizeof(struct timeval), datalen - sizeof(struct timeval));
+
+			return datalen;
+		}
+	}
 }
 
 
-int
-icmp_ping(libicmp_t *isock, char *payload, size_t len)
+int icmp_ping(libicmp_t *obj, char *payload, size_t len)
 {
-    struct timeval now;
-    char buf[MAX_DGRAM_LEN];
+	char           buf[BUFSIZ];
+	struct timeval now;
 
-    isock->seqno++;
-    if (!icmp_send(isock, ICMP_ECHO, payload, len))
-	return 0;
+	obj->seqno++;
+	if (!icmp_send(obj, ICMP_ECHO, payload, len))
+		return 0;
 
-    len = icmp_recv(isock, buf, ICMP_ECHOREPLY, 5000);
-    if (!len) {
-	return 0;
-    }
+	len = icmp_recv(obj, buf, ICMP_ECHOREPLY, 5000);
+	if (!len)
+		return 0;
 
-    gettimeofday(&now, NULL);
-    timersub(&now, &isock->tv, &now);
-    /* precision: tenths of milliseconds */
-    isock->triptime = now.tv_sec * 10000 + (now.tv_usec / 100);
+	gettimeofday(&now, NULL);
+	timersub(&now, &obj->tv, &now);
+	/* precision: tenths of milliseconds */
+	obj->triptime = now.tv_sec * 10000 + (now.tv_usec / 100);
 
-    return len;
+	return len;
 }
 
 
-int
-icmp_close(libicmp_t * isock)
+int icmp_close(libicmp_t *obj)
 {
-    if (!isock)
-	return errno;
+	if (!obj)
+		return errno;
 
-    if (isock->sd)
-	close(isock->sd);
+	if (obj->sd)
+		close(obj->sd);
 
-    free(isock->host);
-    free(isock);
+	free(obj->host);
+	free(obj);
 
-    return 0;
+	return 0;
 }
 
 /**
  * Local Variables:
- *  version-control: t
  *  indent-tabs-mode: t
- *  c-file-style: "ellemtel"
- *  c-basic-offset: 4
+ *  c-file-style: "linux"
  * End:
  */
