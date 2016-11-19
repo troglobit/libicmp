@@ -4,6 +4,9 @@ LibICMP is a small and simple API for sending and receiving ICMP packets
 from your application.  Currently only IPv4 is supported, so any patches
 for adding support for IPv6 are most welcome!
 
+For some useful examples, see the included iping.c and example.c, the
+former makes use of more features and the latter is more bare bones.
+
 LibICMP was initally developed by Tim Lawless and later refactored and
 extended upon by Joachim Nilsson.
 
