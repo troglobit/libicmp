@@ -53,7 +53,7 @@ static uint16_t in_cksum(uint16_t *buf, int nwords)
 
 
 /*
- * If your opening up a socket for listening, set both paramaters to 0
+ * If you are opening up a socket for listening, set both paramaters to 0
  */
 struct libicmp *icmp_open(char *host, uint16_t id, uint8_t ttl)
 {
