@@ -187,6 +187,11 @@ int icmp_send(struct libicmp *obj, uint8_t type, char *payload, size_t len)
 		return -1;
 	}
 
+	if (sizeof(buffer) < len + sizeof(now)) {
+		errno = EMSGSIZE;
+		return -1;
+	}
+
 	obj->gai_code = icmp_resolve(obj, &ai);
 	if (obj->gai_code)
 		return -1;
