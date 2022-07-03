@@ -23,6 +23,7 @@ jobs:
     env:
       MAKEFLAGS: -j3
       CC: ${{ matrix.compiler }}
+      LD_LIBRARY_PATH: /tmp/foo/lib
     steps:
       - name: Install dependencies
         run: |
