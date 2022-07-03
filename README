@@ -8,5 +8,5 @@ For some useful examples, see the included iping.c and example.c, the
 former makes use of more features and the latter is more bare bones.
 
 LibICMP was initally developed by Tim Lawless and later refactored and
-extended upon by Joachim Nilsson.
+extended upon by Joachim Wiberg.
 
